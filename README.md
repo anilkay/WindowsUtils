@@ -29,7 +29,11 @@ dotnet run --project WindowsUtils
 
 ## Single-file build
 
-Produces one self-contained `WindowsUtils.exe` (no .NET install needed on the target machine):
+Both options produce one `WindowsUtils.exe` in `WindowsUtils\bin\Release\net10.0-windows\win-x64\publish\`.
+
+### Option A: Self-contained (~50 MB, recommended)
+
+Includes the .NET runtime, so the target machine needs **nothing** else installed.
 
 ```powershell
 dotnet publish WindowsUtils -c Release -r win-x64 --self-contained `
@@ -38,7 +42,16 @@ dotnet publish WindowsUtils -c Release -r win-x64 --self-contained `
     -p:EnableCompressionInSingleFile=true
 ```
 
-Output: `WindowsUtils\bin\Release\net10.0-windows\win-x64\publish\WindowsUtils.exe`
+### Option B: Framework-dependent (~0.2 MB)
+
+Much smaller, but the target machine must already have the [.NET 10 runtime](https://dotnet.microsoft.com/download) installed.
+
+```powershell
+dotnet publish WindowsUtils -c Release -r win-x64 --self-contained=false `
+    -p:PublishSingleFile=true
+```
+
+> **Note on trimming:** .NET trimming (`PublishTrimmed`) is currently **not supported** for Windows Forms apps; the SDK blocks it with `NETSDK1175`. This is why the self-contained build still bundles the full runtime.
 
 ## Project structure
 
