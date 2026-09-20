@@ -2,6 +2,7 @@ using System.ClientModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
@@ -306,6 +307,8 @@ public class ChatControl : UtilityControl
             AIFunctionFactory.Create(new Func<string, int, bool, string>(GetLargestFiles)),
             AIFunctionFactory.Create(new Func<string, int, string>(ReadTextFile)),
             AIFunctionFactory.Create(new Func<string, string>(GetEnvironmentVariable)),
+            AIFunctionFactory.Create(new Func<string, string, string>(ComputeFileHash)),
+            AIFunctionFactory.Create(new Func<string, string, string>(VerifyFileHash)),
         ];
         _agent = chatClient.AsAIAgent(Instructions, "windows-utils-assistant", "Windows PC assistant", tools, null, null, null);
         _agentCacheKey = cacheKey;
@@ -603,6 +606,72 @@ public class ChatControl : UtilityControl
         catch (Exception ex)
         {
             return $"Error: {ex.Message}";
+        }
+    }
+
+    [Description("Computes the hash of a file. Read-only.")]
+    private static string ComputeFileHash(
+        [Description("Full file path.")] string path,
+        [Description("Algorithm: MD5, SHA-1, SHA-256, or SHA-512.")] string algorithm = "SHA-256")
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return $"File not found: {path}";
+            using var hashAlgorithm = CreateHashAlgorithm(algorithm, out var name);
+            if (hashAlgorithm is null)
+                return $"Unknown algorithm '{algorithm}'. Use MD5, SHA-1, SHA-256, or SHA-512.";
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan);
+            return $"{name}: {Convert.ToHexString(hashAlgorithm.ComputeHash(stream)).ToLowerInvariant()}";
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    [Description("Checks whether a file matches an expected hash. Picks the algorithm from the hash length.")]
+    private static string VerifyFileHash(
+        [Description("Full file path.")] string path,
+        [Description("Expected hash in hex (MD5=32 chars, SHA-1=40, SHA-256=64, SHA-512=128).")] string expectedHash)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return $"File not found: {path}";
+            var expected = expectedHash.Trim().ToLowerInvariant();
+            var algorithm = expected.Length switch
+            {
+                32 => "MD5",
+                40 => "SHA-1",
+                64 => "SHA-256",
+                128 => "SHA-512",
+                _ => null,
+            };
+            if (algorithm is null)
+                return $"Cannot tell the algorithm from a {expected.Length}-character hash.";
+            var actual = ComputeFileHash(path, algorithm);
+            if (actual.StartsWith("Error", StringComparison.Ordinal) || actual.StartsWith("File not found", StringComparison.Ordinal))
+                return actual;
+            return actual.EndsWith(expected, StringComparison.Ordinal)
+                ? $"MATCH ({algorithm})"
+                : $"NO MATCH ({algorithm}). Expected {expected}, got {actual[(algorithm.Length + 2)..]}.";
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    private static HashAlgorithm? CreateHashAlgorithm(string algorithm, out string name)
+    {
+        switch (algorithm.Trim().ToUpperInvariant().Replace("-", "", StringComparison.Ordinal))
+        {
+            case "MD5": name = "MD5"; return MD5.Create();
+            case "SHA1": name = "SHA-1"; return SHA1.Create();
+            case "SHA256": name = "SHA-256"; return SHA256.Create();
+            case "SHA512": name = "SHA-512"; return SHA512.Create();
+            default: name = algorithm; return null;
         }
     }
 }
