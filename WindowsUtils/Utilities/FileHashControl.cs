@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Security.Cryptography;
 
 namespace WindowsUtils.Utilities;
@@ -5,6 +6,10 @@ namespace WindowsUtils.Utilities;
 public class FileHashControl : UtilityControl
 {
     private readonly TextBox _pathBox = new();
+    private readonly CheckBox _md5Check = new() { Text = "MD5", Checked = true, AutoSize = true };
+    private readonly CheckBox _sha1Check = new() { Text = "SHA-1", Checked = true, AutoSize = true };
+    private readonly CheckBox _sha256Check = new() { Text = "SHA-256", Checked = true, AutoSize = true };
+    private readonly CheckBox _sha512Check = new() { Text = "SHA-512", Checked = true, AutoSize = true };
     private readonly TextBox _md5Box = MakeReadOnlyBox();
     private readonly TextBox _sha1Box = MakeReadOnlyBox();
     private readonly TextBox _sha256Box = MakeReadOnlyBox();
@@ -41,6 +46,20 @@ public class FileHashControl : UtilityControl
         topPanel.Controls.Add(browseButton);
         topPanel.Controls.Add(_computeButton);
 
+        var optionsPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 30,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Padding = new Padding(8, 4, 4, 4),
+        };
+        optionsPanel.Controls.Add(new Label { Text = "Algorithms:", AutoSize = true, Margin = new Padding(4, 4, 4, 4) });
+        optionsPanel.Controls.Add(_md5Check);
+        optionsPanel.Controls.Add(_sha1Check);
+        optionsPanel.Controls.Add(_sha256Check);
+        optionsPanel.Controls.Add(_sha512Check);
+
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -70,6 +89,7 @@ public class FileHashControl : UtilityControl
         layout.SetColumnSpan(_verifyLabel, 2);
 
         Controls.Add(layout);
+        Controls.Add(optionsPanel);
         Controls.Add(topPanel);
     }
 
@@ -107,15 +127,30 @@ public class FileHashControl : UtilityControl
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
+        var selected = new List<(string Name, Func<HashAlgorithm> Factory)>(4);
+        if (_md5Check.Checked)
+            selected.Add(("MD5", MD5.Create));
+        if (_sha1Check.Checked)
+            selected.Add(("SHA-1", SHA1.Create));
+        if (_sha256Check.Checked)
+            selected.Add(("SHA-256", SHA256.Create));
+        if (_sha512Check.Checked)
+            selected.Add(("SHA-512", SHA512.Create));
+        if (selected.Count == 0)
+        {
+            MessageBox.Show("Select at least one hash algorithm.", "File Hash", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         _computeButton.Enabled = false;
         _computeButton.Text = "Computing...";
         try
         {
-            var hashes = await Task.Run(() => ComputeHashes(path, token), token);
-            _md5Box.Text = hashes[0];
-            _sha1Box.Text = hashes[1];
-            _sha256Box.Text = hashes[2];
-            _sha512Box.Text = hashes[3];
+            var hashes = await Task.Run(() => ComputeHashes(path, selected, token), token);
+            _md5Box.Text = hashes.TryGetValue("MD5", out var md5) ? md5 : "";
+            _sha1Box.Text = hashes.TryGetValue("SHA-1", out var sha1) ? sha1 : "";
+            _sha256Box.Text = hashes.TryGetValue("SHA-256", out var sha256) ? sha256 : "";
+            _sha512Box.Text = hashes.TryGetValue("SHA-512", out var sha512) ? sha512 : "";
             Verify();
         }
         catch (OperationCanceledException)
@@ -132,29 +167,44 @@ public class FileHashControl : UtilityControl
         }
     }
 
-    private static string[] ComputeHashes(string path, CancellationToken token)
+    private static Dictionary<string, string> ComputeHashes(
+        string path,
+        IReadOnlyList<(string Name, Func<HashAlgorithm> Factory)> selected,
+        CancellationToken token)
     {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920);
-        using var md5 = MD5.Create();
-        using var sha1 = SHA1.Create();
-        using var sha256 = SHA256.Create();
-        using var sha512 = SHA512.Create();
-
-        var algorithms = new HashAlgorithm[] { md5, sha1, sha256, sha512 };
-        var buffer = new byte[81920];
-        int read;
-        while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+        // Single streaming pass over the file, feeding only the selected algorithms.
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan);
+        var algorithms = selected.Select(s => (s.Name, Algorithm: s.Factory())).ToList();
+        try
         {
-            token.ThrowIfCancellationRequested();
-            foreach (var algorithm in algorithms)
-                algorithm.TransformBlock(buffer, 0, read, null, 0);
-        }
-        foreach (var algorithm in algorithms)
-            algorithm.TransformFinalBlock(buffer, 0, 0);
+            var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
+            try
+            {
+                int read;
+                while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    token.ThrowIfCancellationRequested();
+                    foreach (var (_, algorithm) in algorithms)
+                        algorithm.TransformBlock(buffer, 0, read, null, 0);
+                }
+                foreach (var (_, algorithm) in algorithms)
+                    algorithm.TransformFinalBlock(buffer, 0, 0);
 
-        return algorithms
-            .Select(a => Convert.ToHexString(a.Hash!).ToLowerInvariant())
-            .ToArray();
+                return algorithms.ToDictionary(
+                    x => x.Name,
+                    x => Convert.ToHexString(x.Algorithm.Hash!).ToLowerInvariant(),
+                    StringComparer.Ordinal);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+        finally
+        {
+            foreach (var (_, algorithm) in algorithms)
+                algorithm.Dispose();
+        }
     }
 
     private void Verify()
