@@ -9,7 +9,7 @@ dotnet build                        # from repo root (solution dir)
 dotnet run --project WindowsUtils   # run the app
 ```
 
-No external NuGet packages — BCL only (incl. `Microsoft.VisualBasic.FileIO`, which ships with the runtime).
+NuGet packages: Microsoft Agent Framework (`Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI`) + `OpenAI` + `Microsoft.Extensions.AI` (for the AI Chat page). Everything else is BCL-only (incl. `Microsoft.VisualBasic.FileIO`, which ships with the runtime).
 
 ## Structure
 
@@ -23,7 +23,7 @@ WindowsUtils/
     └── *Control.cs       # one self-contained UserControl per utility
 ```
 
-Current utilities: System Information, Disk Info, Network Info, File Hash Calculator, Environment Variables, Startup Programs, Folder Size Analyzer, Largest Files. (Process Manager existed but was removed — do not re-add unless asked.)
+Current utilities: System Information, Disk Info, Network Info, File Hash Calculator, Environment Variables, Startup Programs, Folder Size Analyzer, Largest Files, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
 
 ## Conventions
 
