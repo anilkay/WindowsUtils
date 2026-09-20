@@ -9,6 +9,10 @@ using Microsoft.Extensions.AI;
 using OpenAI;
 using OpenAI.Chat;
 
+// ChatReasoningEffortLevel is marked experimental (OPENAI001) but is the only
+// way to send reasoning_effort; scoped suppression for this file.
+#pragma warning disable OPENAI001
+
 namespace WindowsUtils.Utilities;
 
 public class ChatControl : UtilityControl
@@ -21,6 +25,7 @@ public class ChatControl : UtilityControl
     private readonly TextBox _endpointBox = new() { Text = "https://api.openai.com/v1", Width = 280 };
     private readonly TextBox _modelBox = new() { Text = "gpt-4o-mini", Width = 150 };
     private readonly TextBox _apiKeyBox = new() { Width = 200, UseSystemPasswordChar = true, PlaceholderText = "API key" };
+    private readonly ComboBox _reasoningBox = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 100 };
     private readonly Button _sendButton = new() { Text = "Send", Width = 90 };
     private readonly Button _stopButton = new() { Text = "Stop", Width = 90, Enabled = false };
     private readonly Button _newChatButton = new() { Text = "New chat", AutoSize = true };
@@ -41,7 +46,7 @@ public class ChatControl : UtilityControl
         var settingsPanel = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 76,
+            Height = 104,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = true,
             Padding = new Padding(4),
@@ -50,6 +55,7 @@ public class ChatControl : UtilityControl
         _endpointBox.Margin = new Padding(4, 6, 4, 4);
         _modelBox.Margin = new Padding(4, 6, 4, 4);
         _apiKeyBox.Margin = new Padding(4, 6, 4, 4);
+        _reasoningBox.Margin = new Padding(4, 6, 4, 4);
         _newChatButton.Margin = new Padding(4, 5, 4, 4);
         _clearButton.Margin = new Padding(4, 5, 4, 4);
         _forgetButton.Margin = new Padding(4, 5, 4, 4);
@@ -61,6 +67,10 @@ public class ChatControl : UtilityControl
         settingsPanel.Controls.Add(_modelBox);
         settingsPanel.Controls.Add(new Label { Text = "API key:", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
         settingsPanel.Controls.Add(_apiKeyBox);
+        _reasoningBox.Items.AddRange(["Default", "Minimal", "Low", "Medium", "High"]);
+        _reasoningBox.SelectedIndex = 2;
+        settingsPanel.Controls.Add(new Label { Text = "Reasoning:", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
+        settingsPanel.Controls.Add(_reasoningBox);
         settingsPanel.Controls.Add(_newChatButton);
         settingsPanel.Controls.Add(_clearButton);
         settingsPanel.Controls.Add(_rememberCheck);
@@ -137,6 +147,8 @@ public class ChatControl : UtilityControl
                         _endpointBox.Text = json.Endpoint;
                     if (!string.IsNullOrWhiteSpace(json.Model))
                         _modelBox.Text = json.Model;
+                    if (!string.IsNullOrWhiteSpace(json.ReasoningEffort) && _reasoningBox.Items.Contains(json.ReasoningEffort))
+                        _reasoningBox.SelectedItem = json.ReasoningEffort;
                 }
             }
             var key = CredentialStore.Load();
@@ -158,7 +170,7 @@ public class ChatControl : UtilityControl
         {
             Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
             File.WriteAllText(SettingsPath, JsonSerializer.Serialize(
-                new ChatSettings(_endpointBox.Text.Trim(), _modelBox.Text.Trim()),
+                new ChatSettings(_endpointBox.Text.Trim(), _modelBox.Text.Trim(), _reasoningBox.SelectedItem as string),
                 new JsonSerializerOptions { WriteIndented = true }));
             if (_apiKeyBox.Text.Length > 0)
                 CredentialStore.Save(_apiKeyBox.Text);
@@ -187,7 +199,7 @@ public class ChatControl : UtilityControl
         _statusLabel.Text = "Saved settings forgotten.";
     }
 
-    private sealed record ChatSettings(string Endpoint, string Model);
+    private sealed record ChatSettings(string Endpoint, string Model, string? ReasoningEffort);
 
     /// <summary>Minimal Credential Manager wrapper (advapi32): the API key is stored
     /// OS-encrypted per-user instead of cleartext.</summary>
@@ -291,7 +303,7 @@ public class ChatControl : UtilityControl
         if (string.IsNullOrWhiteSpace(key))
             throw new InvalidOperationException("Enter an API key.");
 
-        var cacheKey = $"{endpoint}|{model}|{key}";
+        var cacheKey = $"{endpoint}|{model}|{key}|{_reasoningBox.SelectedItem}";
         if (_agent is not null && cacheKey == _agentCacheKey)
             return _agent;
 
@@ -310,10 +322,57 @@ public class ChatControl : UtilityControl
             AIFunctionFactory.Create(new Func<string, string, string>(ComputeFileHash)),
             AIFunctionFactory.Create(new Func<string, string, string>(VerifyFileHash)),
         ];
-        _agent = chatClient.AsAIAgent(Instructions, "windows-utils-assistant", "Windows PC assistant", tools, null, null, null);
+        _agent = chatClient.AsAIAgent(Instructions, "windows-utils-assistant", "Windows PC assistant", tools, BuildClientFactory(), null, null);
         _agentCacheKey = cacheKey;
         _session = null;
         return _agent;
+    }
+
+    private Func<IChatClient, IChatClient>? BuildClientFactory()
+    {
+        var level = SelectedReasoningEffort();
+        if (level is null)
+            return null;
+        var effort = level.Value;
+        return inner => new ReasoningEffortChatClient(inner, effort);
+    }
+
+    // NOTE: do not use a switch expression with a `_ => null` arm here. Roslyn compiles
+    // the null arm through the struct's implicit string operator with a null string,
+    // which throws ArgumentNullException. Plain `return null` is safe.
+    private ChatReasoningEffortLevel? SelectedReasoningEffort()
+    {
+        if ((_reasoningBox.SelectedItem as string) is not string selected)
+            return null;
+        if (selected == "Minimal")
+            return ChatReasoningEffortLevel.Minimal;
+        if (selected == "Low")
+            return ChatReasoningEffortLevel.Low;
+        if (selected == "Medium")
+            return ChatReasoningEffortLevel.Medium;
+        if (selected == "High")
+            return ChatReasoningEffortLevel.High;
+        return null;
+    }
+
+    /// <summary>Injects reasoning_effort into every request (incl. the agent's
+    /// internal tool-loop calls). Only reasoning models accept it; "Default" sends nothing.</summary>
+    private sealed class ReasoningEffortChatClient(IChatClient inner, ChatReasoningEffortLevel level) : DelegatingChatClient(inner)
+    {
+        public override Task<ChatResponse> GetResponseAsync(
+            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages, ChatOptions? options, CancellationToken cancellationToken)
+            => base.GetResponseAsync(messages, WithEffort(options), cancellationToken);
+
+        public override IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages, ChatOptions? options, CancellationToken cancellationToken)
+            => base.GetStreamingResponseAsync(messages, WithEffort(options), cancellationToken);
+
+        private ChatOptions WithEffort(ChatOptions? options)
+        {
+            options ??= new();
+            options.RawRepresentationFactory ??= _ => new ChatCompletionOptions { ReasoningEffortLevel = level };
+            return options;
+        }
     }
 
     private async Task SendAsync()
@@ -348,11 +407,21 @@ public class ChatControl : UtilityControl
 
         try
         {
-            _session ??= await agent.CreateSessionAsync(token);
-            await foreach (var update in agent.RunStreamingAsync(prompt, _session, cancellationToken: token))
+            try
             {
-                if (!string.IsNullOrEmpty(update.Text))
-                    AppendText(update.Text);
+                await StreamAsync(agent, prompt, token);
+            }
+            catch (Exception ex) when (IsUnsupportedReasoningEffort(ex) && SelectedReasoningEffort() is not null)
+            {
+                // Model rejects reasoning_effort: drop it and retry once instead of failing.
+                _reasoningBox.SelectedItem = "Default";
+                if (_rememberCheck.Checked)
+                    SaveSettings();
+                agent = EnsureAgent();
+                _session = await agent.CreateSessionAsync(token);
+                AppendText("\n(model does not support reasoning_effort — retrying without it)\n");
+                _statusLabel.Text = "Retrying without reasoning_effort...";
+                await StreamAsync(agent, prompt, token);
             }
             AppendText("\n");
             _statusLabel.Text = "Ready.";
@@ -364,7 +433,10 @@ public class ChatControl : UtilityControl
         }
         catch (Exception ex)
         {
-            AppendText($"\n(error: {ex.Message})\n");
+            // A failed turn can leave the session in an unusable state (e.g. a 400
+            // mid-run); drop it so the next send starts fresh instead of failing again.
+            _session = null;
+            AppendText($"\n(error: {ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace})\n");
             _statusLabel.Text = "Error — check endpoint/model/key.";
         }
         finally
@@ -372,6 +444,26 @@ public class ChatControl : UtilityControl
             _sendButton.Enabled = true;
             _stopButton.Enabled = false;
         }
+    }
+
+    private async Task StreamAsync(AIAgent agent, string prompt, CancellationToken token)
+    {
+        var session = _session ??= await agent.CreateSessionAsync(token);
+        await foreach (var update in agent.RunStreamingAsync(prompt, session, cancellationToken: token))
+        {
+            if (!string.IsNullOrEmpty(update.Text))
+                AppendText(update.Text);
+        }
+    }
+
+    private static bool IsUnsupportedReasoningEffort(Exception ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            if (current.Message.Contains("reasoning_effort", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     private void AppendText(string text)
