@@ -19,6 +19,7 @@ public class MainForm : Form
         ("Startup Programs", () => new StartupProgramsControl()),
         ("Folder Size Analyzer", () => new FolderSizeControl()),
         ("Largest Files", () => new LargestFilesControl()),
+        ("AI Chat", () => new ChatControl()),
     ];
 
     public MainForm()
