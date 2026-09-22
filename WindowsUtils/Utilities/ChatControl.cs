@@ -15,6 +15,7 @@ public class ChatControl : UtilityControl
     private readonly Button _stopButton = new() { Text = "Stop", Width = 90, Enabled = false };
     private readonly Button _newChatButton = new() { Text = "New chat", AutoSize = true };
     private readonly Button _clearButton = new() { Text = "Clear", AutoSize = true };
+    private readonly Button _exportButton = new() { Text = "Export...", AutoSize = true };
     private readonly Button _forgetButton = new() { Text = "Forget", AutoSize = true };
     private readonly CheckBox _rememberCheck = new() { Text = "Remember", Checked = true, AutoSize = true };
     private readonly RichTextBox _transcript = new();
@@ -42,6 +43,7 @@ public class ChatControl : UtilityControl
         _reasoningBox.Margin = new Padding(4, 6, 4, 4);
         _newChatButton.Margin = new Padding(4, 5, 4, 4);
         _clearButton.Margin = new Padding(4, 5, 4, 4);
+        _exportButton.Margin = new Padding(4, 5, 4, 4);
         _forgetButton.Margin = new Padding(4, 5, 4, 4);
         _rememberCheck.Margin = new Padding(4, 8, 4, 4);
 
@@ -57,6 +59,7 @@ public class ChatControl : UtilityControl
         settingsPanel.Controls.Add(_reasoningBox);
         settingsPanel.Controls.Add(_newChatButton);
         settingsPanel.Controls.Add(_clearButton);
+        settingsPanel.Controls.Add(_exportButton);
         settingsPanel.Controls.Add(_rememberCheck);
         settingsPanel.Controls.Add(_forgetButton);
 
@@ -80,6 +83,7 @@ public class ChatControl : UtilityControl
         _stopButton.Click += (_, _) => _cts?.Cancel();
         _newChatButton.Click += (_, _) => NewChat();
         _clearButton.Click += (_, _) => _transcript.Clear();
+        _exportButton.Click += (_, _) => ExportChat();
         _forgetButton.Click += (_, _) => ForgetSettings();
         bottomPanel.Controls.Add(_inputBox);
         bottomPanel.Controls.Add(_stopButton);
@@ -174,6 +178,37 @@ public class ChatControl : UtilityControl
         _chatSession = null;
         _sessionCacheKey = null;
         _statusLabel.Text = "Saved settings forgotten.";
+    }
+
+    private void ExportChat()
+    {
+        if (string.IsNullOrWhiteSpace(_transcript.Text))
+        {
+            _statusLabel.Text = "Nothing to export.";
+            return;
+        }
+
+        using var dialog = new SaveFileDialog
+        {
+            Filter = "Text files (*.txt)|*.txt|Markdown files (*.md)|*.md|All files (*.*)|*.*",
+            DefaultExt = "txt",
+            FileName = $"chat-{DateTime.Now:yyyyMMdd-HHmmss}.txt",
+        };
+        if (dialog.ShowDialog() != DialogResult.OK)
+            return;
+
+        try
+        {
+            var header = $"WindowsUtils AI Chat export — {DateTime.Now:F}\n"
+                + $"Model: {_modelBox.Text.Trim()}\n"
+                + new string('=', 40) + "\n\n";
+            File.WriteAllText(dialog.FileName, header + _transcript.Text);
+            _statusLabel.Text = $"Chat exported to {dialog.FileName}.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not export chat: {ex.Message}", "Export", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     private ReasoningEffort SelectedEffort() =>
