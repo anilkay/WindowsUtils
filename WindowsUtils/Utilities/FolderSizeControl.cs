@@ -1,4 +1,5 @@
 using System.Data;
+using WindowsUtils.Core.IO;
 
 namespace WindowsUtils.Utilities;
 
@@ -88,7 +89,7 @@ public class FolderSizeControl : UtilityControl
                 foreach (var directory in Directory.EnumerateDirectories(path))
                 {
                     token.ThrowIfCancellationRequested();
-                    list.Add((Path.GetFileName(directory), "Folder", DirectorySize(directory, token)));
+                    list.Add((Path.GetFileName(directory), "Folder", FileScanner.GetDirectorySize(directory, token)));
                 }
                 foreach (var file in Directory.EnumerateFiles(path))
                 {
@@ -113,22 +114,5 @@ public class FolderSizeControl : UtilityControl
         {
             _statusLabel.Text = $"Error: {ex.Message}";
         }
-    }
-
-    private static long DirectorySize(string directory, CancellationToken token)
-    {
-        long total = 0;
-        try
-        {
-            foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
-            {
-                token.ThrowIfCancellationRequested();
-                try { total += new FileInfo(file).Length; }
-                catch { /* inaccessible file */ }
-            }
-        }
-        catch (UnauthorizedAccessException) { }
-        catch (IOException) { }
-        return total;
     }
 }

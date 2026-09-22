@@ -1,3 +1,5 @@
+using WindowsUtils.Core;
+
 namespace WindowsUtils.Utilities;
 
 /// <summary>Base class for all utility screens with shared UI helpers.</summary>
@@ -48,16 +50,5 @@ public abstract class UtilityControl : UserControl
             column.SortMode = DataGridViewColumnSortMode.NotSortable;
     }
 
-    protected static string FormatBytes(long bytes)
-    {
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        double size = bytes;
-        var unit = 0;
-        while (size >= 1024 && unit < units.Length - 1)
-        {
-            size /= 1024;
-            unit++;
-        }
-        return $"{size:0.##} {units[unit]}";
-    }
+    protected static string FormatBytes(long bytes) => ByteFormatter.FormatBytes(bytes);
 }

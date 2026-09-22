@@ -1,5 +1,5 @@
-using System.Buffers;
 using System.Security.Cryptography;
+using WindowsUtils.Core.Hashing;
 
 namespace WindowsUtils.Utilities;
 
@@ -127,15 +127,15 @@ public class FileHashControl : UtilityControl
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
-        var selected = new List<(string Name, Func<HashAlgorithm> Factory)>(4);
+        var selected = new List<HashAlgorithmName>(4);
         if (_md5Check.Checked)
-            selected.Add(("MD5", MD5.Create));
+            selected.Add(HashAlgorithmName.MD5);
         if (_sha1Check.Checked)
-            selected.Add(("SHA-1", SHA1.Create));
+            selected.Add(HashAlgorithmName.SHA1);
         if (_sha256Check.Checked)
-            selected.Add(("SHA-256", SHA256.Create));
+            selected.Add(HashAlgorithmName.SHA256);
         if (_sha512Check.Checked)
-            selected.Add(("SHA-512", SHA512.Create));
+            selected.Add(HashAlgorithmName.SHA512);
         if (selected.Count == 0)
         {
             MessageBox.Show("Select at least one hash algorithm.", "File Hash", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -146,11 +146,11 @@ public class FileHashControl : UtilityControl
         _computeButton.Text = "Computing...";
         try
         {
-            var hashes = await Task.Run(() => ComputeHashes(path, selected, token), token);
-            _md5Box.Text = hashes.TryGetValue("MD5", out var md5) ? md5 : "";
-            _sha1Box.Text = hashes.TryGetValue("SHA-1", out var sha1) ? sha1 : "";
-            _sha256Box.Text = hashes.TryGetValue("SHA-256", out var sha256) ? sha256 : "";
-            _sha512Box.Text = hashes.TryGetValue("SHA-512", out var sha512) ? sha512 : "";
+            var hashes = await FileHasher.ComputeHashesAsync(path, selected, token);
+            _md5Box.Text = hashes.TryGetValue(HashAlgorithmName.MD5, out var md5) ? md5 : "";
+            _sha1Box.Text = hashes.TryGetValue(HashAlgorithmName.SHA1, out var sha1) ? sha1 : "";
+            _sha256Box.Text = hashes.TryGetValue(HashAlgorithmName.SHA256, out var sha256) ? sha256 : "";
+            _sha512Box.Text = hashes.TryGetValue(HashAlgorithmName.SHA512, out var sha512) ? sha512 : "";
             Verify();
         }
         catch (OperationCanceledException)
@@ -164,46 +164,6 @@ public class FileHashControl : UtilityControl
         {
             _computeButton.Enabled = true;
             _computeButton.Text = "Compute Hashes";
-        }
-    }
-
-    private static Dictionary<string, string> ComputeHashes(
-        string path,
-        IReadOnlyList<(string Name, Func<HashAlgorithm> Factory)> selected,
-        CancellationToken token)
-    {
-        // Single streaming pass over the file, feeding only the selected algorithms.
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan);
-        var algorithms = selected.Select(s => (s.Name, Algorithm: s.Factory())).ToList();
-        try
-        {
-            var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
-            try
-            {
-                int read;
-                while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    token.ThrowIfCancellationRequested();
-                    foreach (var (_, algorithm) in algorithms)
-                        algorithm.TransformBlock(buffer, 0, read, null, 0);
-                }
-                foreach (var (_, algorithm) in algorithms)
-                    algorithm.TransformFinalBlock(buffer, 0, 0);
-
-                return algorithms.ToDictionary(
-                    x => x.Name,
-                    x => Convert.ToHexString(x.Algorithm.Hash!).ToLowerInvariant(),
-                    StringComparer.Ordinal);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
-        }
-        finally
-        {
-            foreach (var (_, algorithm) in algorithms)
-                algorithm.Dispose();
         }
     }
 

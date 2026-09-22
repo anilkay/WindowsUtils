@@ -1,6 +1,7 @@
 using System.Data;
 using System.Diagnostics;
 using Microsoft.VisualBasic.FileIO;
+using WindowsUtils.Core.IO;
 
 namespace WindowsUtils.Utilities;
 
@@ -16,8 +17,6 @@ public class LargestFilesControl : UtilityControl
     private readonly Button _cancelButton = new();
     private readonly Label _statusLabel = new();
     private CancellationTokenSource? _cts;
-
-    private sealed record FileEntry(string FullPath, long Size, DateTime Modified);
 
     public LargestFilesControl()
     {
@@ -156,10 +155,10 @@ public class LargestFilesControl : UtilityControl
         _cancelButton.Enabled = true;
         _table.Rows.Clear();
 
-        var progress = new Progress<string>(message => _statusLabel.Text = message);
+        var progress = new Progress<ScanProgress>(p => _statusLabel.Text = $"Scanning... {p.Scanned:N0} files checked");
         try
         {
-            var (files, scanned) = await Task.Run(() => FindLargest(roots, MaxResults, progress, token), token);
+            var (files, scanned) = await FileScanner.FindLargestFilesAsync(roots, MaxResults, progress, token);
 
             var rank = 1;
             foreach (var file in files)
@@ -191,68 +190,6 @@ public class LargestFilesControl : UtilityControl
             _scanButton.Enabled = true;
             _cancelButton.Enabled = false;
         }
-    }
-
-    private static (List<FileEntry> Files, long Scanned) FindLargest(
-        IReadOnlyList<string> roots, int maxResults, IProgress<string> progress, CancellationToken token)
-    {
-        // Min-heap by size: keeps only the N largest files seen so far.
-        var heap = new PriorityQueue<FileEntry, long>();
-        var options = new EnumerationOptions
-        {
-            RecurseSubdirectories = true,
-            IgnoreInaccessible = true,
-            AttributesToSkip = FileAttributes.System | FileAttributes.ReparsePoint,
-        };
-
-        long scanned = 0;
-        var lastReport = Environment.TickCount64;
-
-        foreach (var root in roots)
-        {
-            foreach (var path in Directory.EnumerateFiles(root, "*", options))
-            {
-                token.ThrowIfCancellationRequested();
-
-                long size;
-                DateTime modified;
-                try
-                {
-                    var info = new FileInfo(path);
-                    size = info.Length;
-                    modified = info.LastWriteTime;
-                }
-                catch
-                {
-                    continue;
-                }
-
-                scanned++;
-
-                if (heap.Count < maxResults)
-                {
-                    heap.Enqueue(new FileEntry(path, size, modified), size);
-                }
-                else if (size > heap.Peek().Size)
-                {
-                    heap.Dequeue();
-                    heap.Enqueue(new FileEntry(path, size, modified), size);
-                }
-
-                var now = Environment.TickCount64;
-                if (now - lastReport > 250)
-                {
-                    progress.Report($"Scanning... {scanned:N0} files checked");
-                    lastReport = now;
-                }
-            }
-        }
-
-        var result = new List<FileEntry>(heap.Count);
-        while (heap.Count > 0)
-            result.Add(heap.Dequeue());
-        result.Reverse(); // min-heap yields ascending -> flip to descending
-        return (result, scanned);
     }
 
     private void OpenSelectedInExplorer()
