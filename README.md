@@ -1,6 +1,6 @@
 # WindowsUtils
 
-A Windows Forms app (.NET 10) that bundles small, handy Windows utilities in a single window with sidebar navigation. No external dependencies — BCL only.
+A Windows Forms app (.NET 10) that bundles small, handy Windows utilities in a single window with sidebar navigation. Reusable logic (hashing, file scanning, formatting) lives in the dependency-free `WindowsUtils.Core` class library, usable from any .NET app.
 
 ## Utilities
 
@@ -14,6 +14,7 @@ A Windows Forms app (.NET 10) that bundles small, handy Windows utilities in a s
 | **Startup Programs** | Programs registered to start with Windows (registry Run keys) |
 | **Folder Size Analyzer** | Sizes of everything inside a folder, sorted largest first |
 | **Largest Files** | Scans drives/folders for the top 100 largest files; open in Explorer or delete to Recycle Bin |
+| **AI Chat** | Chat with an AI agent that can inspect this PC via read-only tools (needs an API key) |
 
 ## Requirements
 
@@ -56,7 +57,16 @@ dotnet publish WindowsUtils -c Release -r win-x64 --self-contained=false `
 ## Project structure
 
 ```
-WindowsUtils/
+WindowsUtils.Core/       # reusable class library (net10.0, zero dependencies)
+├── Hashing/FileHasher.cs # file hashing + verification
+├── ByteFormatter.cs      # human-readable byte sizes
+└── IO/FileScanner.cs     # top-N largest files, directory sizes
+WindowsUtils.AI/         # AI chat logic (net10.0): agent session, PC tools, settings, credentials
+├── ChatSession.cs        # agent creation, streaming, reasoning-effort handling
+├── PcTools.cs            # read-only PC inspection tools for the agent
+├── ChatSettingsStore.cs  # persisted endpoint/model settings
+└── CredentialStore.cs    # API key in Windows Credential Manager
+WindowsUtils/            # WinForms app (net10.0-windows)
 ├── Program.cs            # entry point
 ├── MainForm.cs           # shell: sidebar navigation + content host
 └── Utilities/
