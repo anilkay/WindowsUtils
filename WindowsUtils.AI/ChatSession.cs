@@ -54,10 +54,12 @@ public sealed class ChatSession
             throw new InvalidOperationException("Enter a valid endpoint URL (e.g. https://api.openai.com/v1).");
         if (string.IsNullOrWhiteSpace(options.Model))
             throw new InvalidOperationException("Enter a model name (e.g. gpt-4o-mini).");
-        if (string.IsNullOrWhiteSpace(options.ApiKey))
+        // API keys never contain meaningful surrounding whitespace (often pasted with a stray space/newline).
+        var apiKey = options.ApiKey?.Trim() ?? "";
+        if (apiKey.Length == 0)
             throw new InvalidOperationException("Enter an API key.");
 
-        var normalized = options with { Endpoint = endpoint };
+        var normalized = options with { Endpoint = endpoint, ApiKey = apiKey };
         return new ChatSession(normalized, BuildAgent(normalized, endpointUri));
     }
 
@@ -150,6 +152,22 @@ public sealed class ChatSession
         for (var current = ex; current is not null; current = current.InnerException)
         {
             if (current.Message.Contains("reasoning_effort", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>True when the endpoint rejected the credentials (HTTP 401/403).</summary>
+    public static bool IsUnauthorizedError(Exception ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            if (current.Message.Contains(" 401", StringComparison.Ordinal)
+                || current.Message.Contains("(401", StringComparison.Ordinal)
+                || current.Message.Contains("unauthorized", StringComparison.OrdinalIgnoreCase)
+                || current.Message.Contains(" 403", StringComparison.Ordinal)
+                || current.Message.Contains("(403", StringComparison.Ordinal)
+                || current.Message.Contains("forbidden", StringComparison.OrdinalIgnoreCase))
                 return true;
         }
         return false;

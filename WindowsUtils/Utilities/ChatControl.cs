@@ -150,8 +150,9 @@ public class ChatControl : UtilityControl
                 _endpointBox.Text.Trim(),
                 _modelBox.Text.Trim(),
                 _reasoningBox.SelectedItem as string));
-            if (_apiKeyBox.Text.Length > 0)
-                CredentialStore.Save(_apiKeyBox.Text);
+            var key = _apiKeyBox.Text.Trim();
+            if (key.Length > 0)
+                CredentialStore.Save(key);
         }
         catch (Exception ex)
         {
@@ -184,7 +185,7 @@ public class ChatControl : UtilityControl
     {
         var endpoint = _endpointBox.Text.Trim().TrimEnd('/');
         var model = _modelBox.Text.Trim();
-        var key = _apiKeyBox.Text;
+        var key = _apiKeyBox.Text.Trim();
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out _))
             throw new InvalidOperationException("Enter a valid endpoint URL (e.g. https://api.openai.com/v1).");
         if (string.IsNullOrWhiteSpace(model))
@@ -259,8 +260,13 @@ public class ChatControl : UtilityControl
         }
         catch (Exception ex)
         {
+            // A failed turn can leave the session in an unusable state (e.g. a 400
+            // mid-run); drop it so the next send starts fresh instead of failing again.
             session.Reset();
-            AppendText($"\n(error: {ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace})\n");
+            if (ChatSession.IsUnauthorizedError(ex))
+                AppendText("\n(Authorization failed: the endpoint rejected the API key (HTTP 401/403). Check that the key is correct and belongs to this endpoint/model.)\n");
+            else
+                AppendText($"\n(error: {ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace})\n");
             _statusLabel.Text = "Error — check endpoint/model/key.";
         }
         finally
