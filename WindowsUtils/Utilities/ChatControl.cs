@@ -8,7 +8,9 @@ namespace WindowsUtils.Utilities;
 public class ChatControl : UtilityControl
 {
     private readonly TextBox _endpointBox = new() { Text = "https://api.openai.com/v1", Width = 280 };
-    private readonly TextBox _modelBox = new() { Text = "gpt-4o-mini", Width = 150 };
+    // Editable drop-down: filled from the endpoint's /models list, but any name can still be typed.
+    private readonly ComboBox _modelBox = new() { Text = "gpt-4o-mini", Width = 220, DropDownStyle = ComboBoxStyle.DropDown, MaxDropDownItems = 20 };
+    private readonly Button _loadModelsButton = new() { Text = "Load models", AutoSize = true };
     private readonly TextBox _apiKeyBox = new() { Width = 200, UseSystemPasswordChar = true, PlaceholderText = "API key" };
     private readonly ComboBox _reasoningBox = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 100 };
     private readonly Button _sendButton = new() { Text = "Send", Width = 90 };
@@ -25,13 +27,16 @@ public class ChatControl : UtilityControl
     private ChatSession? _chatSession;
     private string? _sessionCacheKey;
     private CancellationTokenSource? _cts;
+    private CancellationTokenSource? _modelsCts;
+    private string? _modelsLoadedFor;
 
     public ChatControl()
     {
         var settingsPanel = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 104,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = true,
             Padding = new Padding(4),
@@ -41,6 +46,7 @@ public class ChatControl : UtilityControl
         _modelBox.Margin = new Padding(4, 6, 4, 4);
         _apiKeyBox.Margin = new Padding(4, 6, 4, 4);
         _reasoningBox.Margin = new Padding(4, 6, 4, 4);
+        _loadModelsButton.Margin = new Padding(0, 5, 4, 4);
         _newChatButton.Margin = new Padding(4, 5, 4, 4);
         _clearButton.Margin = new Padding(4, 5, 4, 4);
         _exportButton.Margin = new Padding(4, 5, 4, 4);
@@ -51,6 +57,7 @@ public class ChatControl : UtilityControl
         settingsPanel.Controls.Add(_endpointBox);
         settingsPanel.Controls.Add(new Label { Text = "Model:", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
         settingsPanel.Controls.Add(_modelBox);
+        settingsPanel.Controls.Add(_loadModelsButton);
         settingsPanel.Controls.Add(new Label { Text = "API key:", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
         settingsPanel.Controls.Add(_apiKeyBox);
         _reasoningBox.Items.AddRange(["Default", "Minimal", "Low", "Medium", "High"]);
@@ -85,6 +92,13 @@ public class ChatControl : UtilityControl
         _clearButton.Click += (_, _) => _transcript.Clear();
         _exportButton.Click += (_, _) => ExportChat();
         _forgetButton.Click += (_, _) => ForgetSettings();
+        _loadModelsButton.Click += async (_, _) => await LoadModelsAsync();
+        // Opening the list fetches it once per endpoint/key; the button forces a refresh.
+        _modelBox.DropDown += async (_, _) =>
+        {
+            if (_modelsLoadedFor != ModelsSourceKey())
+                await LoadModelsAsync();
+        };
         bottomPanel.Controls.Add(_inputBox);
         bottomPanel.Controls.Add(_stopButton);
         bottomPanel.Controls.Add(_sendButton);
@@ -120,6 +134,59 @@ public class ChatControl : UtilityControl
         _chatSession?.Reset();
         _transcript.Clear();
         _statusLabel.Text = "New conversation started.";
+    }
+
+    private string ModelsSourceKey() => $"{_endpointBox.Text.Trim().TrimEnd('/')}|{_apiKeyBox.Text.Trim()}";
+
+    /// <summary>Fills the model drop-down from the endpoint's /models list. On failure the
+    /// list stays as it was and the model name can still be typed by hand.</summary>
+    private async Task LoadModelsAsync()
+    {
+        _modelsCts?.Cancel();
+        _modelsCts = new CancellationTokenSource();
+        var token = _modelsCts.Token;
+        var sourceKey = ModelsSourceKey();
+
+        _loadModelsButton.Enabled = false;
+        _statusLabel.Text = "Loading models...";
+        try
+        {
+            var models = await ModelCatalog.ListModelsAsync(_endpointBox.Text, _apiKeyBox.Text, token);
+            if (IsDisposed || token.IsCancellationRequested)
+                return;
+
+            // Keep whatever the user typed or picked; refilling Items would otherwise clear it.
+            var current = _modelBox.Text;
+            _modelBox.BeginUpdate();
+            _modelBox.Items.Clear();
+            _modelBox.Items.AddRange([.. models]);
+            _modelBox.EndUpdate();
+            _modelBox.Text = current;
+            _modelsLoadedFor = sourceKey;
+
+            _statusLabel.Text = models.Count == 0
+                ? "The endpoint returned no models. Type the model name by hand."
+                : $"Loaded {models.Count} model(s). Pick one or type a name.";
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // A newer load replaced this one.
+        }
+        catch (Exception ex)
+        {
+            if (IsDisposed)
+                return;
+            // Remember the failure too, so opening the list does not retry on every click.
+            _modelsLoadedFor = sourceKey;
+            _statusLabel.Text = ChatSession.IsUnauthorizedError(ex)
+                ? "Could not list models: the endpoint rejected the API key (HTTP 401/403). You can still type a model name."
+                : $"Could not list models ({ex.Message}). You can still type a model name.";
+        }
+        finally
+        {
+            if (!IsDisposed)
+                _loadModelsButton.Enabled = true;
+        }
     }
 
     private void LoadPersistedSettings()
