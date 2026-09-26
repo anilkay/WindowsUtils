@@ -158,7 +158,8 @@ public class LargestFilesControl : UtilityControl
         var progress = new Progress<ScanProgress>(p => _statusLabel.Text = $"Scanning... {p.Scanned:N0} files checked");
         try
         {
-            var (files, scanned) = await FileScanner.FindLargestFilesAsync(roots, MaxResults, progress, token);
+            var (files, scanned, errors) = await Task.Run(
+                () => FileScanner.FindLargestFiles(roots, MaxResults, progress, token), token);
 
             var rank = 1;
             foreach (var file in files)
@@ -176,6 +177,8 @@ public class LargestFilesControl : UtilityControl
             _statusLabel.Text = files.Count == 0
                 ? $"Done. Scanned {scanned:N0} files, nothing found."
                 : $"Done. Scanned {scanned:N0} files. Top {files.Count} files total {FormatBytes(files.Sum(f => f.Size))}. Double-click a row to open it in Explorer.";
+            if (errors.Count > 0)
+                _statusLabel.Text += $" Skipped {string.Join(", ", errors.Select(e => $"{e.Root} ({e.Message})"))}";
         }
         catch (OperationCanceledException)
         {

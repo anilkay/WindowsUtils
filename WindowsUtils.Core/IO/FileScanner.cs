@@ -1,14 +1,20 @@
+using System.IO.Enumeration;
+
 namespace WindowsUtils.Core.IO;
 
-/// <summary>A file found by <see cref="FileScanner.FindLargestFilesAsync"/>.</summary>
+/// <summary>A file found by <see cref="FileScanner.FindLargestFiles"/>.</summary>
 public sealed record LargestFileEntry(string FullPath, long Size, DateTime Modified);
 
 /// <summary>Progress reported while scanning.</summary>
 public sealed record ScanProgress(long Scanned, string? CurrentDirectory);
 
+/// <summary>A scan root that could not be read (missing, access denied, drive removed mid-scan).</summary>
+public sealed record ScanError(string Root, string Message);
+
 /// <summary>
 /// Safe, cancellable file-system scanning. Skips inaccessible paths and reparse points
 /// (junctions, symlinks, OneDrive placeholders), so scans never crash or loop.
+/// Methods are synchronous; callers that need a responsive UI wrap them in <c>Task.Run</c>.
 /// </summary>
 public static class FileScanner
 {
@@ -19,74 +25,67 @@ public static class FileScanner
         AttributesToSkip = FileAttributes.System | FileAttributes.ReparsePoint,
     };
 
-    /// <summary>Finds the <paramref name="maxResults"/> largest files under <paramref name="roots"/>, sorted largest first.</summary>
-    public static (IReadOnlyList<LargestFileEntry> Files, long Scanned) FindLargestFiles(
+    // Size and timestamp come straight from the directory listing, so no extra stat call per file.
+    private static FileSystemEnumerable<(string Path, long Size, DateTime Modified)> EnumerateFiles(string directory, bool recursive) =>
+        new(directory,
+            (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.Length, entry.LastWriteTimeUtc.LocalDateTime),
+            CreateOptions(recursive))
+        {
+            ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory,
+        };
+
+    /// <summary>
+    /// Finds the <paramref name="maxResults"/> largest files under <paramref name="roots"/>, sorted largest first.
+    /// A root that cannot be read is skipped and reported in <c>Errors</c>; the other roots are still scanned.
+    /// </summary>
+    public static (IReadOnlyList<LargestFileEntry> Files, long Scanned, IReadOnlyList<ScanError> Errors) FindLargestFiles(
         IEnumerable<string> roots,
         int maxResults,
         IProgress<ScanProgress>? progress = null,
         CancellationToken cancellationToken = default,
-        bool recursive = true) =>
-        FindLargest(roots, maxResults, progress, cancellationToken, recursive);
-
-    /// <summary>Finds the <paramref name="maxResults"/> largest files under <paramref name="roots"/>, sorted largest first.</summary>
-    public static Task<(IReadOnlyList<LargestFileEntry> Files, long Scanned)> FindLargestFilesAsync(
-        IEnumerable<string> roots,
-        int maxResults,
-        IProgress<ScanProgress>? progress = null,
-        CancellationToken cancellationToken = default,
-        bool recursive = true) =>
-        Task.Run(() => FindLargest(roots, maxResults, progress, cancellationToken, recursive), cancellationToken);
-
-    private static (IReadOnlyList<LargestFileEntry> Files, long Scanned) FindLargest(
-        IEnumerable<string> roots,
-        int maxResults,
-        IProgress<ScanProgress>? progress,
-        CancellationToken cancellationToken,
-        bool recursive)
+        bool recursive = true)
     {
+        ArgumentNullException.ThrowIfNull(roots);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxResults);
+
         // Min-heap by size: keeps only the N largest files seen so far (constant memory).
         var heap = new PriorityQueue<LargestFileEntry, long>();
+        var errors = new List<ScanError>();
 
         long scanned = 0;
         var lastReport = Environment.TickCount64;
 
         foreach (var root in roots)
         {
-            foreach (var path in Directory.EnumerateFiles(root, "*", CreateOptions(recursive)))
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                foreach (var (path, size, modified) in EnumerateFiles(root, recursive))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                long size;
-                DateTime modified;
-                try
-                {
-                    var info = new FileInfo(path);
-                    size = info.Length;
-                    modified = info.LastWriteTime;
-                }
-                catch
-                {
-                    continue;
-                }
+                    scanned++;
 
-                scanned++;
+                    if (heap.Count < maxResults)
+                    {
+                        heap.Enqueue(new LargestFileEntry(path, size, modified), size);
+                    }
+                    else if (size > heap.Peek().Size)
+                    {
+                        heap.Dequeue();
+                        heap.Enqueue(new LargestFileEntry(path, size, modified), size);
+                    }
 
-                if (heap.Count < maxResults)
-                {
-                    heap.Enqueue(new LargestFileEntry(path, size, modified), size);
+                    var now = Environment.TickCount64;
+                    if (progress is not null && now - lastReport > 250)
+                    {
+                        progress.Report(new ScanProgress(scanned, Path.GetDirectoryName(path)));
+                        lastReport = now;
+                    }
                 }
-                else if (size > heap.Peek().Size)
-                {
-                    heap.Dequeue();
-                    heap.Enqueue(new LargestFileEntry(path, size, modified), size);
-                }
-
-                var now = Environment.TickCount64;
-                if (progress is not null && now - lastReport > 250)
-                {
-                    progress.Report(new ScanProgress(scanned, Path.GetDirectoryName(path)));
-                    lastReport = now;
-                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                errors.Add(new ScanError(root, ex.Message));
             }
         }
 
@@ -94,7 +93,7 @@ public static class FileScanner
         while (heap.Count > 0)
             result.Add(heap.Dequeue());
         result.Reverse(); // min-heap yields ascending -> flip to descending
-        return (result, scanned);
+        return (result, scanned, errors);
     }
 
     /// <summary>Total size of all files under <paramref name="directory"/>, recursively. Inaccessible files are skipped.</summary>
@@ -103,11 +102,10 @@ public static class FileScanner
         long total = 0;
         try
         {
-            foreach (var file in Directory.EnumerateFiles(directory, "*", CreateOptions(recursive: true)))
+            foreach (var (_, size, _) in EnumerateFiles(directory, recursive: true))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                try { total += new FileInfo(file).Length; }
-                catch { /* inaccessible file */ }
+                total += size;
             }
         }
         catch (UnauthorizedAccessException) { }

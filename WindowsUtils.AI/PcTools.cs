@@ -163,7 +163,9 @@ public static class PcTools
                 return $"Directory not found: {directory}";
             top = Math.Clamp(top, 1, 50);
 
-            var (files, _) = FileScanner.FindLargestFiles([resolved], top, recursive: recursive);
+            var (files, _, errors) = FileScanner.FindLargestFiles([resolved], top, recursive: recursive);
+            if (errors.Count > 0)
+                return $"Error: {errors[0].Message}";
             if (files.Count == 0)
                 return "(empty)";
             return string.Join(Environment.NewLine,
