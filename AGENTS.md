@@ -18,9 +18,11 @@ WindowsUtils.slnx
 WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── Hashing/FileHasher.cs # file hashing (MD5/SHA-1/SHA-256/SHA-384/SHA-512) + verify
 ├── ByteFormatter.cs      # human-readable byte sizes
-├── IO/FileScanner.cs     # safe file scanning: top-N largest files, directory sizes
+├── IO/FileScanner.cs     # safe file scanning: top-N largest files, folder contents, directory sizes
 ├── IO/DuplicateFinder.cs # duplicate files: group by size, then prefix hash, then SHA-256
-└── IO/RecycleBin.cs      # send to Recycle Bin via shell, asks before permanent delete
+├── IO/RecycleBin.cs      # send to Recycle Bin via shell, asks before permanent delete
+├── Net/NetworkInfo.cs    # network adapters + ping
+└── SystemInfo/StartupPrograms.cs # registry Run/RunOnce entries (read-only)
 WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── ChatSession.cs        # agent creation, session, streaming, reasoning-effort retry
 ├── PcTools.cs            # read-only PC inspection tools exposed to the agent
@@ -46,11 +48,13 @@ Current utilities: System Information, Disk Info, Network Info, File Hash Calcul
 - **Docking order**: WinForms docks controls in reverse z-order. Add the `Dock=Fill` control **first**, then `Top`/`Bottom` panels, so panels dock correctly.
 - **Reusable logic goes to Core**: UI-agnostic code (hashing, formatting, scanning) lives in `WindowsUtils.Core` (`net10.0`, no WinForms references) so console apps/services can reuse it. The WinForms project holds UI only.
 - **AI logic goes to WindowsUtils.AI**: agent setup, session/streaming, tools, settings and credential storage live there. `ChatControl` is a thin UI shell that only calls `ChatSession` / `ChatSettingsStore` / `CredentialStore`.
+- **Every screen is also an AI tool**: whatever a utility screen can show must also be available to AI Chat as a tool in `PcTools` (registered in `ChatSession.BuildAgent`). Tools call the same Core logic as the screen, are read-only (no delete, write or registry changes; destructive actions stay in the UI behind a confirmation), pass model-chosen paths through `ResolveDirectory` / `ToLocalPath`, and cap their output. Long scans take a `CancellationToken` parameter (AIFunctionFactory binds it and hides it from the model).
 
 ## Adding a new utility
 
 1. Create `Utilities/MyToolControl.cs : UtilityControl`, build UI in the constructor.
 2. Add one line to `MainForm.Utilities`: `("My Tool", "\uE90F", "One-line description.", () => new MyToolControl()),`
+3. Expose the same capability to AI Chat: add a read-only `[Description]` method to `PcTools` and register it in `ChatSession.BuildAgent`.
 
 ## Gotchas (learned the hard way)
 

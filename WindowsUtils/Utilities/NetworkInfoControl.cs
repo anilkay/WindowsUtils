@@ -1,6 +1,5 @@
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
 using System.Text;
+using WindowsUtils.Core.Net;
 
 namespace WindowsUtils.Utilities;
 
@@ -19,24 +18,8 @@ public class NetworkInfoControl : UtilityControl
         grid.Columns.Add("MAC", "MAC");
         MakeUnsortable(grid);
 
-        foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
-        {
-            var properties = nic.GetIPProperties();
-            var ipv4 = properties.UnicastAddresses
-                .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork)
-                ?.Address.ToString() ?? "";
-            var ipv6 = properties.UnicastAddresses
-                .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetworkV6 && !a.Address.IsIPv6LinkLocal)
-                ?.Address.ToString() ?? "";
-
-            grid.Rows.Add(
-                nic.Name,
-                nic.NetworkInterfaceType.ToString(),
-                nic.OperationalStatus.ToString(),
-                ipv4,
-                ipv6,
-                FormatMac(nic.GetPhysicalAddress()));
-        }
+        foreach (var adapter in NetworkInfo.GetAdapters())
+            grid.Rows.Add(adapter.Name, adapter.Type, adapter.Status, adapter.IPv4, adapter.IPv6, adapter.Mac);
 
         var pingPanel = new FlowLayoutPanel
         {
@@ -79,13 +62,11 @@ public class NetworkInfoControl : UtilityControl
         _pingResult.Text = $"Pinging {host}...";
         try
         {
-            using var ping = new Ping();
             var builder = new StringBuilder();
-            for (var i = 0; i < 4; i++)
+            foreach (var reply in await NetworkInfo.PingAsync(host))
             {
-                var reply = await ping.SendPingAsync(host, 3000);
-                builder.AppendLine(reply.Status == IPStatus.Success
-                    ? $"Reply from {reply.Address}: time={reply.RoundtripTime}ms"
+                builder.AppendLine(reply.Success
+                    ? $"Reply from {reply.Address}: time={reply.RoundtripMs}ms"
                     : $"Request failed: {reply.Status}");
             }
             _pingResult.Text = builder.ToString();
@@ -98,13 +79,5 @@ public class NetworkInfoControl : UtilityControl
         {
             button.Enabled = true;
         }
-    }
-
-    private static string FormatMac(PhysicalAddress mac)
-    {
-        var value = mac.ToString();
-        if (value.Length != 12)
-            return value;
-        return string.Join(":", Enumerable.Range(0, 6).Select(i => value.Substring(i * 2, 2)));
     }
 }

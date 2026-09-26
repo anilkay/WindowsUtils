@@ -5,6 +5,9 @@ namespace WindowsUtils.Core.IO;
 /// <summary>A file found by <see cref="FileScanner.FindLargestFiles"/>.</summary>
 public sealed record LargestFileEntry(string FullPath, long Size, DateTime Modified);
 
+/// <summary>A direct child of a folder, from <see cref="FileScanner.GetFolderContents"/>.</summary>
+public sealed record FolderItem(string Name, bool IsFolder, long Size);
+
 /// <summary>Progress reported while scanning.</summary>
 public sealed record ScanProgress(long Scanned, string? CurrentDirectory);
 
@@ -94,6 +97,27 @@ public static class FileScanner
             result.Add(heap.Dequeue());
         result.Reverse(); // min-heap yields ascending -> flip to descending
         return (result, scanned, errors);
+    }
+
+    /// <summary>
+    /// Direct children of <paramref name="directory"/> with their sizes (folders include everything below them),
+    /// sorted largest first.
+    /// </summary>
+    public static IReadOnlyList<FolderItem> GetFolderContents(string directory, CancellationToken cancellationToken = default)
+    {
+        var items = new List<FolderItem>();
+        foreach (var subdirectory in Directory.EnumerateDirectories(directory, "*", CreateOptions(recursive: false)))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            items.Add(new FolderItem(Path.GetFileName(subdirectory), true, GetDirectorySize(subdirectory, cancellationToken)));
+        }
+        foreach (var (path, size, _) in EnumerateFiles(directory, recursive: false))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            items.Add(new FolderItem(Path.GetFileName(path), false, size));
+        }
+        items.Sort((a, b) => b.Size.CompareTo(a.Size));
+        return items;
     }
 
     /// <summary>Total size of all files under <paramref name="directory"/>, recursively. Inaccessible files are skipped.</summary>

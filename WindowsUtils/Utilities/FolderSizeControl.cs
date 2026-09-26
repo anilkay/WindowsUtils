@@ -83,26 +83,10 @@ public class FolderSizeControl : UtilityControl
         _table.Rows.Clear();
         try
         {
-            var rows = await Task.Run(() =>
-            {
-                var list = new List<(string Name, string Type, long Size)>();
-                foreach (var directory in Directory.EnumerateDirectories(path))
-                {
-                    token.ThrowIfCancellationRequested();
-                    list.Add((Path.GetFileName(directory), "Folder", FileScanner.GetDirectorySize(directory, token)));
-                }
-                foreach (var file in Directory.EnumerateFiles(path))
-                {
-                    token.ThrowIfCancellationRequested();
-                    long length;
-                    try { length = new FileInfo(file).Length; } catch { length = 0; }
-                    list.Add((Path.GetFileName(file), "File", length));
-                }
-                return list;
-            }, token);
+            var rows = await Task.Run(() => FileScanner.GetFolderContents(path, token), token);
 
-            foreach (var (name, type, size) in rows)
-                _table.Rows.Add(name, type, size);
+            foreach (var item in rows)
+                _table.Rows.Add(item.Name, item.IsFolder ? "Folder" : "File", item.Size);
             _table.DefaultView.Sort = "Size DESC";
 
             _statusLabel.Text = $"Done: {rows.Count} items, total {FormatBytes(rows.Sum(r => r.Size))}.";

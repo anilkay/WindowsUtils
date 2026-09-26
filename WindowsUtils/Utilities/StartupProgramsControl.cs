@@ -1,17 +1,9 @@
-using Microsoft.Win32;
+using WindowsUtils.Core.SystemInfo;
 
 namespace WindowsUtils.Utilities;
 
 public class StartupProgramsControl : UtilityControl
 {
-    private static readonly (string Label, RegistryHive Hive, string Path)[] Locations =
-    [
-        (@"HKCU\...\Run", RegistryHive.CurrentUser, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"),
-        (@"HKCU\...\RunOnce", RegistryHive.CurrentUser, @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"),
-        (@"HKLM\...\Run", RegistryHive.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"),
-        (@"HKLM\...\RunOnce", RegistryHive.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"),
-    ];
-
     public StartupProgramsControl()
     {
         var grid = CreateGrid();
@@ -20,23 +12,8 @@ public class StartupProgramsControl : UtilityControl
         grid.Columns.Add("Location", "Location");
         MakeUnsortable(grid);
 
-        foreach (var (label, hive, path) in Locations)
-        {
-            try
-            {
-                using var baseKey = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64);
-                using var key = baseKey.OpenSubKey(path);
-                if (key is null)
-                    continue;
-
-                foreach (var name in key.GetValueNames())
-                    grid.Rows.Add(name, key.GetValue(name)?.ToString() ?? "", label);
-            }
-            catch (Exception)
-            {
-                // Access denied or other registry errors - skip that location.
-            }
-        }
+        foreach (var entry in StartupPrograms.GetEntries())
+            grid.Rows.Add(entry.Name, entry.Command, entry.Location);
 
         var note = new Label
         {

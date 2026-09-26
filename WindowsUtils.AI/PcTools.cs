@@ -7,6 +7,8 @@ using OpenAI.Chat;
 using WindowsUtils.Core;
 using WindowsUtils.Core.Hashing;
 using WindowsUtils.Core.IO;
+using WindowsUtils.Core.Net;
+using WindowsUtils.Core.SystemInfo;
 
 namespace WindowsUtils.AI;
 
@@ -174,6 +176,156 @@ public static class PcTools
         catch (Exception ex)
         {
             return $"Error: {ex.Message}";
+        }
+    }
+
+    [Description("Finds duplicate files (identical content, confirmed by SHA-256) in a folder and its subfolders. "
+        + "Returns groups sorted by space that could be freed. Read-only: it never deletes anything.")]
+    public static string FindDuplicateFiles(
+        [Description("Directory path (e.g. C:\\Temp) or a shortcut: Documents, Desktop, Downloads, UserProfile.")] string directory = "Documents",
+        [Description("Ignore files smaller than this many megabytes (0 = any size).")] int minSizeMb = 1,
+        [Description("Maximum number of duplicate groups to return (1-50).")] int maxGroups = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var resolved = ResolveDirectory(directory);
+            if (resolved is null)
+                return $"Directory not found (only local drive paths are allowed): {directory}";
+            maxGroups = Math.Clamp(maxGroups, 1, 50);
+            var minSize = Math.Max(0, minSizeMb) * 1024L * 1024L;
+
+            var (groups, scanned, errors) = DuplicateFinder.FindDuplicates([resolved], minSize, cancellationToken: cancellationToken);
+            if (errors.Count > 0)
+                return $"Error: {errors[0].Message}";
+            if (groups.Count == 0)
+                return $"No duplicates found ({scanned:N0} files scanned).";
+
+            var lines = new List<string>
+            {
+                $"{groups.Count:N0} duplicate groups in {scanned:N0} files; "
+                    + $"{ByteFormatter.FormatBytes(groups.Sum(g => g.WastedBytes))} could be freed by keeping one copy of each."
+                    + (groups.Count > maxGroups ? $" Showing the top {maxGroups}." : ""),
+            };
+            foreach (var group in groups.Take(maxGroups))
+            {
+                lines.Add($"- {group.Files.Count} copies of {ByteFormatter.FormatBytes(group.Size)} "
+                    + $"(wastes {ByteFormatter.FormatBytes(group.WastedBytes)}), oldest first:");
+                lines.AddRange(group.Files.Take(10).Select(f => $"    {f.FullPath}  ({f.Modified:g})"));
+                if (group.Files.Count > 10)
+                    lines.Add($"    ...and {group.Files.Count - 10} more");
+            }
+            return string.Join(Environment.NewLine, lines);
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // let the chat cancel the whole request
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    [Description("Shows what takes up space inside a folder: its direct subfolders (with total size) and files, largest first. Read-only.")]
+    public static string GetFolderSizes(
+        [Description("Directory path (e.g. C:\\Temp) or a shortcut: Documents, Desktop, Downloads, UserProfile.")] string directory = "Documents",
+        [Description("Maximum items to return (1-50).")] int top = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var resolved = ResolveDirectory(directory);
+            if (resolved is null)
+                return $"Directory not found (only local drive paths are allowed): {directory}";
+            top = Math.Clamp(top, 1, 50);
+
+            var items = FileScanner.GetFolderContents(resolved, cancellationToken);
+            if (items.Count == 0)
+                return "(empty)";
+            var lines = new List<string>
+            {
+                $"{resolved}: {items.Count} items, total {ByteFormatter.FormatBytes(items.Sum(i => i.Size))}"
+                    + (items.Count > top ? $". Showing the largest {top}." : "."),
+            };
+            lines.AddRange(items.Take(top).Select(i =>
+                $"{ByteFormatter.FormatBytes(i.Size),-10} {(i.IsFolder ? "[folder]" : "[file]  ")} {i.Name}"));
+            return string.Join(Environment.NewLine, lines);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    [Description("Lists programs registered to start with Windows (registry Run and RunOnce keys). Read-only.")]
+    public static string GetStartupPrograms()
+    {
+        try
+        {
+            var entries = StartupPrograms.GetEntries();
+            if (entries.Count == 0)
+                return "(no startup programs found)";
+            return string.Join(Environment.NewLine, entries.Select(e =>
+            {
+                var command = e.Command.Length <= 300 ? e.Command : e.Command[..300] + "...";
+                return $"{e.Name} [{e.Location}]: {command}";
+            }));
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    [Description("Lists network adapters with type, status, IPv4/IPv6 addresses and MAC address.")]
+    public static string GetNetworkAdapters()
+    {
+        try
+        {
+            var adapters = NetworkInfo.GetAdapters();
+            if (adapters.Count == 0)
+                return "(no network adapters)";
+            return string.Join(Environment.NewLine, adapters.Select(a =>
+                $"{a.Name} ({a.Type}, {a.Status})"
+                + (a.IPv4.Length > 0 ? $" IPv4 {a.IPv4}" : "")
+                + (a.IPv6.Length > 0 ? $" IPv6 {a.IPv6}" : "")
+                + (a.Mac.Length > 0 ? $" MAC {a.Mac}" : "")));
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    [Description("Pings a host name or IP address to check connectivity and latency (ICMP echo, 3 s timeout each).")]
+    public static async Task<string> PingHost(
+        [Description("Host name or IP address, e.g. 8.8.8.8 or example.com.")] string host,
+        [Description("Number of pings (1-4).")] int count = 4,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(host) || host.Trim().Length > 253)
+                return "Enter a host name or IP address.";
+            var results = await NetworkInfo.PingAsync(host, Math.Clamp(count, 1, 4), cancellationToken);
+            var ok = results.Where(r => r.Success).ToList();
+            var summary = $"{ok.Count}/{results.Count} replies"
+                + (ok.Count > 0 ? $", avg {ok.Average(r => r.RoundtripMs):0} ms" : "");
+            return summary + Environment.NewLine + string.Join(Environment.NewLine, results.Select(r =>
+                r.Success ? $"Reply from {r.Address}: time={r.RoundtripMs}ms" : $"Request failed: {r.Status}"));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return $"Ping failed: {ex.GetBaseException().Message}";
         }
     }
 
