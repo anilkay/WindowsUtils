@@ -19,6 +19,7 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── Hashing/FileHasher.cs # file hashing (MD5/SHA-1/SHA-256/SHA-384/SHA-512) + verify
 ├── ByteFormatter.cs      # human-readable byte sizes
 ├── IO/FileScanner.cs     # safe file scanning: top-N largest files, directory sizes
+├── IO/DuplicateFinder.cs # duplicate files: group by size, then prefix hash, then SHA-256
 └── IO/RecycleBin.cs      # send to Recycle Bin via shell, asks before permanent delete
 WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── ChatSession.cs        # agent creation, session, streaming, reasoning-effort retry
@@ -35,7 +36,7 @@ WindowsUtils/            # WinForms app (net10.0-windows), references Core
     └── *Control.cs       # one self-contained UserControl per utility
 ```
 
-Current utilities: System Information, Disk Info, Network Info, File Hash Calculator, Environment Variables, Startup Programs, Folder Size Analyzer, Largest Files, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
+Current utilities: System Information, Disk Info, Network Info, File Hash Calculator, Environment Variables, Startup Programs, Folder Size Analyzer, Largest Files, Duplicate Files, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
 
 ## Conventions
 

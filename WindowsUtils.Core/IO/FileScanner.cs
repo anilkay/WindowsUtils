@@ -26,7 +26,7 @@ public static class FileScanner
     };
 
     // Size and timestamp come straight from the directory listing, so no extra stat call per file.
-    private static FileSystemEnumerable<(string Path, long Size, DateTime Modified)> EnumerateFiles(string directory, bool recursive) =>
+    internal static FileSystemEnumerable<(string Path, long Size, DateTime Modified)> EnumerateFiles(string directory, bool recursive) =>
         new(directory,
             (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.Length, entry.LastWriteTimeUtc.LocalDateTime),
             CreateOptions(recursive))

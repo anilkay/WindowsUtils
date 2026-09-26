@@ -23,6 +23,7 @@ public class MainForm : Form
         ("Startup Programs", "\uE7E8", "Programs registered to start with Windows.", () => new StartupProgramsControl()),
         ("Folder Size Analyzer", "\uE8B7", "See what takes up space inside a folder.", () => new FolderSizeControl()),
         ("Largest Files", "\uE8A5", "Find the biggest files on your drives.", () => new LargestFilesControl()),
+        ("Duplicate Files", "\uE8C8", "Find identical files and free up space.", () => new DuplicateFilesControl()),
         ("AI Chat", "\uE8F2", "Ask an AI assistant that can inspect this PC.", () => new ChatControl()),
     ];
 
