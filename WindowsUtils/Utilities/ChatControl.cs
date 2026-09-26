@@ -7,11 +7,11 @@ namespace WindowsUtils.Utilities;
 /// logic lives in WindowsUtils.AI; this control only builds the UI and displays results.</summary>
 public class ChatControl : UtilityControl
 {
-    private readonly TextBox _endpointBox = new() { Text = "https://api.openai.com/v1", Width = 280 };
+    private readonly TextBox _endpointBox = new() { Text = "https://api.openai.com/v1", Width = 260 };
     // Editable drop-down: filled from the endpoint's /models list, but any name can still be typed.
     private readonly ComboBox _modelBox = new() { Text = "gpt-4o-mini", Width = 220, DropDownStyle = ComboBoxStyle.DropDown, MaxDropDownItems = 20 };
     private readonly Button _loadModelsButton = new() { Text = "Load models", AutoSize = true };
-    private readonly TextBox _apiKeyBox = new() { Width = 200, UseSystemPasswordChar = true, PlaceholderText = "API key" };
+    private readonly TextBox _apiKeyBox = new() { Width = 180, UseSystemPasswordChar = true, PlaceholderText = "API key" };
     private readonly ComboBox _reasoningBox = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 100 };
     private readonly Button _sendButton = new() { Text = "Send", Width = 90 };
     private readonly Button _stopButton = new() { Text = "Stop", Width = 90, Enabled = false };
@@ -20,7 +20,7 @@ public class ChatControl : UtilityControl
     private readonly Button _exportButton = new() { Text = "Export...", AutoSize = true };
     private readonly Button _forgetButton = new() { Text = "Forget", AutoSize = true };
     private readonly CheckBox _rememberCheck = new() { Text = "Remember", Checked = true, AutoSize = true };
-    private readonly RichTextBox _transcript = new();
+    private readonly ChatTranscriptView _transcript = new();
     private readonly TextBox _inputBox = new();
     private readonly Label _statusLabel = new();
 
@@ -32,6 +32,8 @@ public class ChatControl : UtilityControl
 
     public ChatControl()
     {
+        // Two settings rows: connection (endpoint, key) and model options. Each row wraps
+        // on its own when the window is narrow instead of scattering controls across lines.
         var settingsPanel = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
@@ -39,57 +41,58 @@ public class ChatControl : UtilityControl
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = true,
-            Padding = new Padding(4),
+            Padding = new Padding(0, 0, 0, 8),
         };
 
-        _endpointBox.Margin = new Padding(4, 6, 4, 4);
+        foreach (var box in new Control[] { _endpointBox, _apiKeyBox, _reasoningBox })
+            box.Margin = new Padding(4, 6, 12, 4);
         _modelBox.Margin = new Padding(4, 6, 4, 4);
-        _apiKeyBox.Margin = new Padding(4, 6, 4, 4);
-        _reasoningBox.Margin = new Padding(4, 6, 4, 4);
-        _loadModelsButton.Margin = new Padding(0, 5, 4, 4);
-        _newChatButton.Margin = new Padding(4, 5, 4, 4);
-        _clearButton.Margin = new Padding(4, 5, 4, 4);
-        _exportButton.Margin = new Padding(4, 5, 4, 4);
-        _forgetButton.Margin = new Padding(4, 5, 4, 4);
+        foreach (var button in new[] { _forgetButton, _newChatButton, _clearButton, _exportButton })
+            button.Margin = new Padding(4, 3, 4, 3);
+        _loadModelsButton.Margin = new Padding(4, 3, 12, 3);
         _rememberCheck.Margin = new Padding(4, 8, 4, 4);
 
-        settingsPanel.Controls.Add(new Label { Text = "Endpoint:", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
+        settingsPanel.Controls.Add(SettingLabel("Endpoint:"));
         settingsPanel.Controls.Add(_endpointBox);
-        settingsPanel.Controls.Add(new Label { Text = "Model:", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
+        settingsPanel.Controls.Add(SettingLabel("API key:"));
+        settingsPanel.Controls.Add(_apiKeyBox);
+        settingsPanel.SetFlowBreak(_apiKeyBox, true);
+        settingsPanel.Controls.Add(SettingLabel("Model:"));
         settingsPanel.Controls.Add(_modelBox);
         settingsPanel.Controls.Add(_loadModelsButton);
-        settingsPanel.Controls.Add(new Label { Text = "API key:", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
-        settingsPanel.Controls.Add(_apiKeyBox);
         _reasoningBox.Items.AddRange(["Default", "Minimal", "Low", "Medium", "High"]);
         _reasoningBox.SelectedIndex = 2;
-        settingsPanel.Controls.Add(new Label { Text = "Reasoning:", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
+        settingsPanel.Controls.Add(SettingLabel("Reasoning:"));
         settingsPanel.Controls.Add(_reasoningBox);
-        settingsPanel.Controls.Add(_newChatButton);
-        settingsPanel.Controls.Add(_clearButton);
-        settingsPanel.Controls.Add(_exportButton);
         settingsPanel.Controls.Add(_rememberCheck);
         settingsPanel.Controls.Add(_forgetButton);
 
         _transcript.Dock = DockStyle.Fill;
-        _transcript.ReadOnly = true;
-        _transcript.ScrollBars = RichTextBoxScrollBars.Vertical;
-        _transcript.Font = Theme.BodyFont;
-        _transcript.Text = "Enter your endpoint, model and API key above, then ask anything.\n"
-            + "The agent can inspect this PC via tools (system info, processes, drives, files).\n\n";
+        // Written once the handle exists, so the text picks up the themed background color.
+        _transcript.HandleCreated += (_, _) =>
+        {
+            if (_transcript.TextLength == 0)
+                _transcript.AddNote("Enter your endpoint, model and API key above, then ask anything. "
+                    + "The agent can inspect this PC via read-only tools (system info, processes, drives, files).");
+        };
 
-        var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 64, Padding = new Padding(4) };
+        var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 72, Padding = new Padding(0, 4, 0, 0) };
         _inputBox.Dock = DockStyle.Fill;
         _inputBox.Multiline = true;
-        _inputBox.ScrollBars = ScrollBars.Vertical;
+        _inputBox.ScrollBars = ScrollBars.None;
         _inputBox.PlaceholderText = "Type a message... (Enter to send, Shift+Enter for newline)";
         _inputBox.KeyDown += OnInputKeyDown;
+        // Show the scroll bar only once the text no longer fits.
+        _inputBox.TextChanged += (_, _) => UpdateInputScrollBar();
+        _inputBox.Resize += (_, _) => UpdateInputScrollBar();
+        _inputBox.HandleCreated += (_, _) => ChatTranscriptView.UseDarkScrollBars(_inputBox);
         _sendButton.Dock = DockStyle.Right;
         _sendButton.AsAccent();
         _stopButton.Dock = DockStyle.Right;
         _sendButton.Click += async (_, _) => await SendAsync();
         _stopButton.Click += (_, _) => _cts?.Cancel();
         _newChatButton.Click += (_, _) => NewChat();
-        _clearButton.Click += (_, _) => _transcript.Clear();
+        _clearButton.Click += (_, _) => _transcript.ClearTranscript();
         _exportButton.Click += (_, _) => ExportChat();
         _forgetButton.Click += (_, _) => ForgetSettings();
         _loadModelsButton.Click += async (_, _) => await LoadModelsAsync();
@@ -100,23 +103,52 @@ public class ChatControl : UtilityControl
                 await LoadModelsAsync();
         };
         bottomPanel.Controls.Add(_inputBox);
+        bottomPanel.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 8 });
         bottomPanel.Controls.Add(_stopButton);
+        bottomPanel.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 6 });
         bottomPanel.Controls.Add(_sendButton);
 
-        _statusLabel.Dock = DockStyle.Bottom;
-        _statusLabel.Height = 22;
+        // Status on the left, conversation actions on the right, between transcript and input.
+        var statusBar = new Panel { Dock = DockStyle.Bottom, Height = 42 };
+        var chatActions = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Right,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+            Padding = new Padding(0, 2, 0, 0),
+        };
+        chatActions.Controls.Add(_newChatButton);
+        chatActions.Controls.Add(_clearButton);
+        chatActions.Controls.Add(_exportButton);
+        _statusLabel.Dock = DockStyle.Fill;
+        _statusLabel.AutoEllipsis = true;
+        _statusLabel.TextAlign = ContentAlignment.MiddleLeft;
+        _statusLabel.ForeColor = Theme.SubtleText;
         _statusLabel.Text = "Not connected.";
-        _statusLabel.Padding = new Padding(4, 0, 0, 0);
+        statusBar.Controls.Add(_statusLabel);
+        statusBar.Controls.Add(chatActions);
 
         // RichTextBox has no padding of its own; a surface-colored frame gives the text room.
-        var transcriptFrame = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 8, 4, 8), BackColor = Theme.Surface };
+        var transcriptFrame = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16, 12, 4, 8), BackColor = Theme.Surface };
         transcriptFrame.Controls.Add(_transcript);
         Controls.Add(transcriptFrame);
-        Controls.Add(_statusLabel);
+        Controls.Add(statusBar);
         Controls.Add(bottomPanel);
         Controls.Add(settingsPanel);
 
         LoadPersistedSettings();
+    }
+
+    private static Label SettingLabel(string text) =>
+        new() { Text = text, AutoSize = true, Margin = new Padding(0, 9, 0, 4) };
+
+    private void UpdateInputScrollBar()
+    {
+        var lines = _inputBox.GetLineFromCharIndex(_inputBox.TextLength) + 1;
+        var wanted = lines * _inputBox.Font.Height > _inputBox.ClientSize.Height ? ScrollBars.Vertical : ScrollBars.None;
+        if (_inputBox.ScrollBars != wanted)
+            _inputBox.ScrollBars = wanted;
     }
 
     private void OnInputKeyDown(object? sender, KeyEventArgs e)
@@ -132,7 +164,7 @@ public class ChatControl : UtilityControl
     {
         _cts?.Cancel();
         _chatSession?.Reset();
-        _transcript.Clear();
+        _transcript.ClearTranscript();
         _statusLabel.Text = "New conversation started.";
     }
 
@@ -252,7 +284,7 @@ public class ChatControl : UtilityControl
 
     private void ExportChat()
     {
-        if (string.IsNullOrWhiteSpace(_transcript.Text))
+        if (!_transcript.HasMessages)
         {
             _statusLabel.Text = "Nothing to export.";
             return;
@@ -260,19 +292,18 @@ public class ChatControl : UtilityControl
 
         using var dialog = new SaveFileDialog
         {
-            Filter = "Text files (*.txt)|*.txt|Markdown files (*.md)|*.md|All files (*.*)|*.*",
-            DefaultExt = "txt",
-            FileName = $"chat-{DateTime.Now:yyyyMMdd-HHmmss}.txt",
+            Filter = "Markdown files (*.md)|*.md|Text files (*.txt)|*.txt|All files (*.*)|*.*",
+            DefaultExt = "md",
+            FileName = $"chat-{DateTime.Now:yyyyMMdd-HHmmss}.md",
         };
         if (dialog.ShowDialog() != DialogResult.OK)
             return;
 
         try
         {
-            var header = $"WindowsUtils AI Chat export — {DateTime.Now:F}\n"
-                + $"Model: {_modelBox.Text.Trim()}\n"
-                + new string('=', 40) + "\n\n";
-            File.WriteAllText(dialog.FileName, header + _transcript.Text);
+            var header = $"# WindowsUtils AI Chat export — {DateTime.Now:F}\n\n"
+                + $"Model: {_modelBox.Text.Trim()}\n\n";
+            File.WriteAllText(dialog.FileName, header + _transcript.ToMarkdown());
             _statusLabel.Text = $"Chat exported to {dialog.FileName}.";
         }
         catch (Exception ex)
@@ -336,7 +367,8 @@ public class ChatControl : UtilityControl
         _stopButton.Enabled = true;
         _inputBox.Clear();
         _statusLabel.Text = "Thinking... (the agent may call tools)";
-        AppendText($"\nYou:\n{prompt}\n\nAssistant:\n");
+        _transcript.AddUserMessage(prompt);
+        _transcript.BeginAssistantMessage();
 
         try
         {
@@ -351,16 +383,19 @@ public class ChatControl : UtilityControl
                 if (_rememberCheck.Checked)
                     SaveSettings();
                 session.DisableReasoningEffort();
-                AppendText("\n(model does not support reasoning_effort — retrying without it)\n");
+                _transcript.EndAssistantMessage();
+                _transcript.AddNote("The model does not support reasoning_effort, retrying without it.");
+                _transcript.BeginAssistantMessage();
                 _statusLabel.Text = "Retrying without reasoning_effort...";
                 await StreamAsync(session, prompt, token);
             }
-            AppendText("\n");
+            _transcript.EndAssistantMessage();
             _statusLabel.Text = "Ready.";
         }
         catch (OperationCanceledException)
         {
-            AppendText("\n(cancelled)\n");
+            _transcript.EndAssistantMessage();
+            _transcript.AddNote("Cancelled.");
             _statusLabel.Text = "Cancelled.";
         }
         catch (Exception ex)
@@ -368,10 +403,11 @@ public class ChatControl : UtilityControl
             // A failed turn can leave the session in an unusable state (e.g. a 400
             // mid-run); drop it so the next send starts fresh instead of failing again.
             session.Reset();
+            _transcript.EndAssistantMessage();
             if (ChatSession.IsUnauthorizedError(ex))
-                AppendText("\n(Authorization failed: the endpoint rejected the API key (HTTP 401/403). Check that the key is correct and belongs to this endpoint/model.)\n");
+                _transcript.AddError("Authorization failed: the endpoint rejected the API key (HTTP 401/403). Check that the key is correct and belongs to this endpoint/model.");
             else
-                AppendText($"\n(error: {ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace})\n");
+                _transcript.AddError($"Error: {ex.GetType().Name}: {ex.Message}");
             _statusLabel.Text = "Error — check endpoint/model/key.";
         }
         finally
@@ -384,13 +420,6 @@ public class ChatControl : UtilityControl
     private async Task StreamAsync(ChatSession session, string prompt, CancellationToken token)
     {
         await foreach (var text in session.StreamResponseAsync(prompt, token))
-            AppendText(text);
-    }
-
-    private void AppendText(string text)
-    {
-        _transcript.AppendText(text);
-        _transcript.SelectionStart = _transcript.TextLength;
-        _transcript.ScrollToCaret();
+            _transcript.AppendAssistantText(text);
     }
 }
