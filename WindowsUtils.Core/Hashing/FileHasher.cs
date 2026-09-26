@@ -19,9 +19,12 @@ public static class FileHasher
             throw new ArgumentException("Select at least one hash algorithm.", nameof(algorithms));
 
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan);
-        var instances = selected.Select(a => (Algorithm: a, Instance: Create(a))).ToList();
+        var instances = new List<(HashAlgorithmName Algorithm, IncrementalHash Instance)>(selected.Count);
         try
         {
+            foreach (var algorithm in selected)
+                instances.Add((algorithm, Create(algorithm)));
+
             var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
             try
             {
@@ -30,14 +33,12 @@ public static class FileHasher
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     foreach (var (_, instance) in instances)
-                        instance.TransformBlock(buffer, 0, read, null, 0);
+                        instance.AppendData(buffer, 0, read);
                 }
-                foreach (var (_, instance) in instances)
-                    instance.TransformFinalBlock(buffer, 0, 0);
 
                 return instances.ToDictionary(
                     x => x.Algorithm,
-                    x => Convert.ToHexString(x.Instance.Hash!).ToLowerInvariant());
+                    x => Convert.ToHexStringLower(x.Instance.GetHashAndReset()));
             }
             finally
             {
@@ -72,13 +73,14 @@ public static class FileHasher
         return null;
     }
 
-    private static HashAlgorithm Create(HashAlgorithmName name)
+    private static IncrementalHash Create(HashAlgorithmName name)
     {
-        if (name == HashAlgorithmName.MD5) return MD5.Create();
-        if (name == HashAlgorithmName.SHA1) return SHA1.Create();
-        if (name == HashAlgorithmName.SHA256) return SHA256.Create();
-        if (name == HashAlgorithmName.SHA384) return SHA384.Create();
-        if (name == HashAlgorithmName.SHA512) return SHA512.Create();
+        if (name == HashAlgorithmName.MD5 ||
+            name == HashAlgorithmName.SHA1 ||
+            name == HashAlgorithmName.SHA256 ||
+            name == HashAlgorithmName.SHA384 ||
+            name == HashAlgorithmName.SHA512)
+            return IncrementalHash.CreateHash(name);
         throw new NotSupportedException($"Unsupported hash algorithm: '{name.Name}'.");
     }
 }
