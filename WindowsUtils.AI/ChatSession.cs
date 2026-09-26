@@ -1,3 +1,4 @@
+using System.ClientModel;
 using System.Runtime.CompilerServices;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
@@ -158,16 +159,19 @@ public sealed class ChatSession
     }
 
     /// <summary>True when the endpoint rejected the credentials (HTTP 401/403).</summary>
+    /// <remarks>Uses the HTTP status code, not the message text: messages often contain
+    /// numbers such as token counts ("Requested 4031") that looked like 401/403.</remarks>
     public static bool IsUnauthorizedError(Exception ex)
     {
         for (var current = ex; current is not null; current = current.InnerException)
         {
-            if (current.Message.Contains(" 401", StringComparison.Ordinal)
-                || current.Message.Contains("(401", StringComparison.Ordinal)
-                || current.Message.Contains("unauthorized", StringComparison.OrdinalIgnoreCase)
-                || current.Message.Contains(" 403", StringComparison.Ordinal)
-                || current.Message.Contains("(403", StringComparison.Ordinal)
-                || current.Message.Contains("forbidden", StringComparison.OrdinalIgnoreCase))
+            var status = current switch
+            {
+                ClientResultException clientError => clientError.Status,
+                HttpRequestException { StatusCode: { } code } => (int)code,
+                _ => 0,
+            };
+            if (status is 401 or 403)
                 return true;
         }
         return false;

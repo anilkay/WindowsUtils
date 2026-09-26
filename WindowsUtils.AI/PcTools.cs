@@ -114,7 +114,7 @@ public static class PcTools
         {
             var resolved = ResolveDirectory(directory);
             if (resolved is null)
-                return $"Directory not found: {directory}";
+                return $"Directory not found (only local drive paths are allowed): {directory}";
             maxResults = Math.Clamp(maxResults, 1, 100);
             if (string.IsNullOrWhiteSpace(pattern))
                 pattern = "*.*";
@@ -137,7 +137,7 @@ public static class PcTools
         {
             var resolved = ResolveDirectory(directory);
             if (resolved is null)
-                return $"Directory not found: {directory}";
+                return $"Directory not found (only local drive paths are allowed): {directory}";
             maxResults = Math.Clamp(maxResults, 1, 100);
             if (string.IsNullOrWhiteSpace(pattern))
                 pattern = "*";
@@ -160,7 +160,7 @@ public static class PcTools
         {
             var resolved = ResolveDirectory(directory);
             if (resolved is null)
-                return $"Directory not found: {directory}";
+                return $"Directory not found (only local drive paths are allowed): {directory}";
             top = Math.Clamp(top, 1, 50);
 
             var (files, _, errors) = FileScanner.FindLargestFiles([resolved], top, recursive: recursive);
@@ -188,10 +188,35 @@ public static class PcTools
             "desktop" => Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
             "downloads" => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"),
             "userprofile" or "home" => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            _ => key,
+            _ => ToLocalPath(key),
         };
-        return Directory.Exists(candidate) ? candidate : null;
+        return candidate is not null && Directory.Exists(candidate) ? candidate : null;
     }
+
+    // The model chooses tool paths, so they are untrusted. Only drive-letter paths (C:\...)
+    // are allowed: touching a UNC (\\host\share) or device path (\\?\, \\.\, \??\) makes
+    // Windows connect to that host over SMB/WebDAV and send the user's NTLM credentials.
+    // Checked before any file-system call; Path.GetFullPath is purely lexical.
+    internal static string? ToLocalPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+        string full;
+        try
+        {
+            full = Path.GetFullPath(path.Trim().Trim('"'));
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+        return full.Length >= 3 && char.IsAsciiLetter(full[0]) && full[1] == ':' && full[2] == '\\'
+            ? full
+            : null;
+    }
+
+    private static string LocalOnlyMessage(string path) =>
+        $"Only local drive paths (e.g. C:\\Temp\\file.txt) are allowed; network and device paths are blocked: {path}";
 
     [Description("Reads a text file. Read-only.")]
     public static string ReadTextFile(
@@ -200,10 +225,13 @@ public static class PcTools
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            var local = ToLocalPath(path);
+            if (local is null)
+                return LocalOnlyMessage(path);
+            if (!File.Exists(local))
                 return $"File not found: {path}";
             maxChars = Math.Clamp(maxChars, 1, 20000);
-            var text = File.ReadAllText(path);
+            var text = File.ReadAllText(local);
             return text.Length <= maxChars ? text : text[..maxChars] + "\n...(truncated)";
         }
         catch (Exception ex)
@@ -236,12 +264,15 @@ public static class PcTools
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            var local = ToLocalPath(path);
+            if (local is null)
+                return LocalOnlyMessage(path);
+            if (!File.Exists(local))
                 return $"File not found: {path}";
             var parsed = ParseAlgorithm(algorithm);
             if (parsed is null)
                 return $"Unknown algorithm '{algorithm}'. Use MD5, SHA-1, SHA-256, or SHA-512.";
-            var hashes = FileHasher.ComputeHashes(path, [parsed.Value]);
+            var hashes = FileHasher.ComputeHashes(local, [parsed.Value]);
             return $"{DisplayName(parsed.Value)}: {hashes[parsed.Value]}";
         }
         catch (Exception ex)
@@ -257,7 +288,10 @@ public static class PcTools
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            var local = ToLocalPath(path);
+            if (local is null)
+                return LocalOnlyMessage(path);
+            if (!File.Exists(local))
                 return $"File not found: {path}";
             var expected = expectedHash.Trim().ToLowerInvariant();
             HashAlgorithmName? parsed = null;
@@ -271,7 +305,7 @@ public static class PcTools
                 parsed = HashAlgorithmName.SHA512;
             if (parsed is null)
                 return $"Cannot tell the algorithm from a {expected.Length}-character hash.";
-            var hashes = FileHasher.ComputeHashes(path, [parsed.Value]);
+            var hashes = FileHasher.ComputeHashes(local, [parsed.Value]);
             var name = DisplayName(parsed.Value);
             return FileHasher.FindMatch(hashes, expected) is not null
                 ? $"MATCH ({name})"

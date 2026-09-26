@@ -9,7 +9,7 @@ dotnet build                        # from repo root (solution dir)
 dotnet run --project WindowsUtils   # run the app
 ```
 
-NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`). `WindowsUtils.Core` is dependency-free. The WinForms app itself has no direct package references (only `Microsoft.VisualBasic.FileIO`, which ships with the runtime).
+NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`). `WindowsUtils.Core` is dependency-free. The WinForms app itself has no package references.
 
 ## Structure
 
@@ -18,7 +18,8 @@ WindowsUtils.slnx
 WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── Hashing/FileHasher.cs # file hashing (MD5/SHA-1/SHA-256/SHA-384/SHA-512) + verify
 ├── ByteFormatter.cs      # human-readable byte sizes
-└── IO/FileScanner.cs     # safe file scanning: top-N largest files, directory sizes
+├── IO/FileScanner.cs     # safe file scanning: top-N largest files, directory sizes
+└── IO/RecycleBin.cs      # send to Recycle Bin via shell, asks before permanent delete
 WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── ChatSession.cs        # agent creation, session, streaming, reasoning-effort retry
 ├── PcTools.cs            # read-only PC inspection tools exposed to the agent
@@ -59,7 +60,8 @@ Current utilities: System Information, Disk Info, Network Info, File Hash Calcul
 - Long-running work (scanning, hashing, ping): hashing/scanning implementations live in Core with `CancellationToken` support; UI wraps them in `Task.Run` + `CancellationTokenSource` (cancel previous run before starting a new one) and reports via `Progress<T>`. Never block the UI thread.
 - File enumeration: `EnumerationOptions { IgnoreInaccessible = true, AttributesToSkip = System | ReparsePoint }` — avoids access-denied crashes, junction loops, and OneDrive placeholder downloads.
 - Top-N file selection: `PriorityQueue<T, long>` min-heap capped at N (constant memory).
-- File deletion: `Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin)` — always Recycle Bin, with a Yes/No confirmation first.
+- File deletion: `RecycleBin.SendToRecycleBin(path, owner)` (Core) after a Yes/No confirmation. It passes `FOF_WANTNUKEWARNING`, so files that cannot be recycled (too large, network/USB drive) prompt before permanent deletion; it returns false if the user keeps the file. Do **not** use `Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(..., UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin)`: it silently deletes such files permanently.
+- AI tool paths are untrusted (the model picks them): pass them through `PcTools.ToLocalPath` / `ResolveDirectory` before any file-system call. Only drive-letter paths are allowed; UNC and device paths would make Windows send NTLM credentials to arbitrary hosts.
 - Registry access: read-only, wrapped in try/catch (access denied is expected).
 - Open file in Explorer: `Process.Start("explorer.exe", $"/select,\"{path}\"")`.
 

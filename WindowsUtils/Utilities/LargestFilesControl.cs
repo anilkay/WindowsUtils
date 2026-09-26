@@ -1,6 +1,5 @@
 using System.Data;
 using System.Diagnostics;
-using Microsoft.VisualBasic.FileIO;
 using WindowsUtils.Core.IO;
 
 namespace WindowsUtils.Utilities;
@@ -235,7 +234,8 @@ public class LargestFilesControl : UtilityControl
 
         var totalSize = rows.Sum(r => (long)r["Size"]);
         var answer = MessageBox.Show(
-            $"Delete {rows.Count} file(s) ({FormatBytes(totalSize)})? They will be moved to the Recycle Bin.",
+            $"Delete {rows.Count} file(s) ({FormatBytes(totalSize)})? They will be moved to the Recycle Bin.\n\n"
+                + "Files that cannot be recycled (too large, or on a network or USB drive) will ask before being permanently deleted.",
             "Delete Files",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning);
@@ -243,13 +243,19 @@ public class LargestFilesControl : UtilityControl
             return;
 
         var deleted = 0;
+        var kept = 0;
         var failures = new List<string>();
+        var owner = FindForm()?.Handle ?? Handle;
         foreach (var row in rows)
         {
             var path = (string)row["FullPath"];
             try
             {
-                FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                if (!RecycleBin.SendToRecycleBin(path, owner))
+                {
+                    kept++; // could not be recycled and the user declined permanent deletion
+                    continue;
+                }
                 row.Row.Delete();
                 deleted++;
             }
@@ -260,9 +266,9 @@ public class LargestFilesControl : UtilityControl
         }
 
         Renumber();
-        _statusLabel.Text = failures.Count == 0
-            ? $"Deleted {deleted} file(s)."
-            : $"Deleted {deleted} file(s), {failures.Count} failed.";
+        _statusLabel.Text = $"Deleted {deleted} file(s)."
+            + (kept > 0 ? $" Kept {kept} that could not be recycled." : "")
+            + (failures.Count > 0 ? $" {failures.Count} failed." : "");
 
         if (failures.Count > 0)
         {
