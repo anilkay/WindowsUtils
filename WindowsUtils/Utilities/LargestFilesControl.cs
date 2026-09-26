@@ -52,6 +52,7 @@ public class LargestFilesControl : UtilityControl
         var browseButton = new Button { Text = "Browse...", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
         _scanButton.Text = "Scan";
         _scanButton.AutoSize = true;
+        _scanButton.AsAccent();
         _scanButton.Margin = new Padding(4, 6, 4, 4);
         _cancelButton.Text = "Cancel";
         _cancelButton.AutoSize = true;
@@ -76,9 +77,9 @@ public class LargestFilesControl : UtilityControl
         _grid = CreateGrid();
         _grid.MultiSelect = true;
         _grid.AutoGenerateColumns = false;
-        AddBoundColumn(_grid, "Rank", "Rank").FillWeight = 6;
+        AddBoundColumn(_grid, "Rank", "Rank").FillWeight = 8;
         AddBoundColumn(_grid, "Name", "Name").FillWeight = 26;
-        AddBoundColumn(_grid, "Folder", "Folder").FillWeight = 44;
+        AddBoundColumn(_grid, "Folder", "Folder").FillWeight = 42;
         AddBoundColumn(_grid, "Size", "Size").FillWeight = 12;
         AddBoundColumn(_grid, "Modified", "Modified").FillWeight = 16;
         AddBoundColumn(_grid, "FullPath", "FullPath").Visible = false;

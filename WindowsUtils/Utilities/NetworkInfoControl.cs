@@ -53,7 +53,7 @@ public class NetworkInfoControl : UtilityControl
             Width = 220,
             Margin = new Padding(4, 8, 4, 4),
         };
-        var pingButton = new Button { Text = "Ping", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
+        var pingButton = new Button { Text = "Ping", AutoSize = true, Margin = new Padding(4, 6, 4, 4) }.AsAccent();
         _pingResult.AutoSize = true;
         _pingResult.Margin = new Padding(12, 10, 4, 4);
 

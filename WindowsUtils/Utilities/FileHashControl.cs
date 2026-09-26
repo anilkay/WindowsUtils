@@ -37,6 +37,7 @@ public class FileHashControl : UtilityControl
         var browseButton = new Button { Text = "Browse...", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
         _computeButton.Text = "Compute Hashes";
         _computeButton.AutoSize = true;
+        _computeButton.AsAccent();
         _computeButton.Margin = new Padding(4, 6, 4, 4);
 
         browseButton.Click += (_, _) => Browse();
@@ -84,7 +85,7 @@ public class FileHashControl : UtilityControl
 
         _verifyLabel.Dock = DockStyle.Fill;
         _verifyLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _verifyLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        _verifyLabel.Font = Theme.SemiboldFont;
         layout.Controls.Add(_verifyLabel, 0, 5);
         layout.SetColumnSpan(_verifyLabel, 2);
 
@@ -93,7 +94,7 @@ public class FileHashControl : UtilityControl
         Controls.Add(topPanel);
     }
 
-    private static TextBox MakeReadOnlyBox() => new() { ReadOnly = true, BackColor = SystemColors.Window };
+    private static TextBox MakeReadOnlyBox() => new() { ReadOnly = true, BackColor = SystemColors.Window, Font = Theme.MonoFont };
 
     private static void AddRow(TableLayoutPanel layout, int row, string label, Control control)
     {
@@ -189,12 +190,12 @@ public class FileHashControl : UtilityControl
             if (hash.Length > 0 && hash == input)
             {
                 _verifyLabel.Text = $"MATCH: the file matches the provided {name} hash.";
-                _verifyLabel.ForeColor = Color.DarkGreen;
+                _verifyLabel.ForeColor = Theme.Success;
                 return;
             }
         }
 
         _verifyLabel.Text = "NO MATCH with any computed hash.";
-        _verifyLabel.ForeColor = Color.DarkRed;
+        _verifyLabel.ForeColor = Theme.Danger;
     }
 }

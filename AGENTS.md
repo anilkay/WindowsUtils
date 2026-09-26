@@ -28,7 +28,8 @@ WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 └── ReasoningEffortChatClient.cs # injects reasoning_effort into requests
 WindowsUtils/            # WinForms app (net10.0-windows), references Core
 ├── Program.cs            # entry point, launches MainForm
-├── MainForm.cs           # shell: SplitContainer with nav ListBox + content panel
+├── MainForm.cs           # shell: owner-drawn sidebar nav + page header + content panel
+├── Theme.cs              # Windows 11 style colors/fonts, light/dark, accent, button/grid styling
 └── Utilities/
     ├── UtilityControl.cs # abstract base for all utility screens (shared helpers)
     └── *Control.cs       # one self-contained UserControl per utility
@@ -39,7 +40,8 @@ Current utilities: System Information, Disk Info, Network Info, File Hash Calcul
 ## Conventions
 
 - **UI is built in code, not Designer files.** Each utility is a single self-contained `.cs` file — no `.Designer.cs`, no `.resx`.
-- **Navigation**: `MainForm.Utilities` is a `(string Name, Func<UserControl> Factory)[]` tuple array. Controls are created lazily on first navigation and cached (state survives tab switches).
+- **Navigation**: `MainForm.Utilities` is a `(string Name, string Icon, string Description, Func<UserControl> Factory)[]` tuple array (`Icon` is a Segoe Fluent Icons glyph such as `"\uE770"`; `Description` is shown under the page title). Controls are created lazily on first navigation, styled with `Theme.Apply`, and cached (state survives tab switches).
+- **Theming**: `Theme.cs` holds the Windows 11 style palette (light/dark follows Windows via `Application.SetColorMode(SystemColorMode.System)`, accent from the Windows accent color) and fonts. Use `Theme.*` colors instead of `SystemColors`/named colors; mark a screen's main action button with `.AsAccent()`. Buttons are owner-painted by `Theme.Apply`, grids by `CreateGrid()`.
 - **Docking order**: WinForms docks controls in reverse z-order. Add the `Dock=Fill` control **first**, then `Top`/`Bottom` panels, so panels dock correctly.
 - **Reusable logic goes to Core**: UI-agnostic code (hashing, formatting, scanning) lives in `WindowsUtils.Core` (`net10.0`, no WinForms references) so console apps/services can reuse it. The WinForms project holds UI only.
 - **AI logic goes to WindowsUtils.AI**: agent setup, session/streaming, tools, settings and credential storage live there. `ChatControl` is a thin UI shell that only calls `ChatSession` / `ChatSettingsStore` / `CredentialStore`.
@@ -47,7 +49,7 @@ Current utilities: System Information, Disk Info, Network Info, File Hash Calcul
 ## Adding a new utility
 
 1. Create `Utilities/MyToolControl.cs : UtilityControl`, build UI in the constructor.
-2. Add one line to `MainForm.Utilities`: `("My Tool", () => new MyToolControl()),`
+2. Add one line to `MainForm.Utilities`: `("My Tool", "\uE90F", "One-line description.", () => new MyToolControl()),`
 
 ## Gotchas (learned the hard way)
 

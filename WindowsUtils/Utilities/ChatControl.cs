@@ -65,9 +65,8 @@ public class ChatControl : UtilityControl
 
         _transcript.Dock = DockStyle.Fill;
         _transcript.ReadOnly = true;
-        _transcript.BackColor = SystemColors.Window;
         _transcript.ScrollBars = RichTextBoxScrollBars.Vertical;
-        _transcript.Font = new Font("Segoe UI", 9.5F);
+        _transcript.Font = Theme.BodyFont;
         _transcript.Text = "Enter your endpoint, model and API key above, then ask anything.\n"
             + "The agent can inspect this PC via tools (system info, processes, drives, files).\n\n";
 
@@ -78,6 +77,7 @@ public class ChatControl : UtilityControl
         _inputBox.PlaceholderText = "Type a message... (Enter to send, Shift+Enter for newline)";
         _inputBox.KeyDown += OnInputKeyDown;
         _sendButton.Dock = DockStyle.Right;
+        _sendButton.AsAccent();
         _stopButton.Dock = DockStyle.Right;
         _sendButton.Click += async (_, _) => await SendAsync();
         _stopButton.Click += (_, _) => _cts?.Cancel();
@@ -94,7 +94,10 @@ public class ChatControl : UtilityControl
         _statusLabel.Text = "Not connected.";
         _statusLabel.Padding = new Padding(4, 0, 0, 0);
 
-        Controls.Add(_transcript);
+        // RichTextBox has no padding of its own; a surface-colored frame gives the text room.
+        var transcriptFrame = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 8, 4, 8), BackColor = Theme.Surface };
+        transcriptFrame.Controls.Add(_transcript);
+        Controls.Add(transcriptFrame);
         Controls.Add(_statusLabel);
         Controls.Add(bottomPanel);
         Controls.Add(settingsPanel);

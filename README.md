@@ -2,6 +2,15 @@
 
 A Windows Forms app (.NET 10) that bundles small, handy Windows utilities in a single window with sidebar navigation. Reusable logic (hashing, file scanning, formatting) lives in the dependency-free `WindowsUtils.Core` class library, usable from any .NET app.
 
+The UI follows the Windows 11 look: it switches between light and dark with your Windows setting and uses your Windows accent color.
+
+## Screenshots
+
+| Light | Dark |
+| --- | --- |
+| ![Largest Files, light theme](docs/screenshots/largest-files-light.png) | ![Largest Files, dark theme](docs/screenshots/largest-files-dark.png) |
+| ![File Hash Calculator, light theme](docs/screenshots/file-hash-light.png) | ![Disk Info, dark theme](docs/screenshots/disk-info-dark.png) |
+
 ## Utilities
 
 | Utility | What it does |
@@ -69,6 +78,7 @@ WindowsUtils.AI/         # AI chat logic (net10.0): agent session, PC tools, set
 WindowsUtils/            # WinForms app (net10.0-windows)
 ├── Program.cs            # entry point
 ├── MainForm.cs           # shell: sidebar navigation + content host
+├── Theme.cs              # Windows 11 style colors, fonts, light/dark mode, accent color
 └── Utilities/
     ├── UtilityControl.cs # base class with shared grid/format helpers
     └── *Control.cs       # one self-contained UserControl per utility

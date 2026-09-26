@@ -12,7 +12,7 @@ public abstract class UtilityControl : UserControl
 
     protected static DataGridView CreateGrid()
     {
-        return new DataGridView
+        var grid = new DataGridView
         {
             Dock = DockStyle.Fill,
             ReadOnly = true,
@@ -23,9 +23,10 @@ public abstract class UtilityControl : UserControl
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             MultiSelect = false,
             RowHeadersVisible = false,
-            BackgroundColor = SystemColors.Window,
-            BorderStyle = BorderStyle.None,
         };
+        // Styled here (not in Theme.Apply) so the row height applies to rows added in constructors.
+        Theme.StyleGrid(grid);
+        return grid;
     }
 
     /// <summary>Adds a text column bound to a data source property.

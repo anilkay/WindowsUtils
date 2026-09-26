@@ -31,7 +31,7 @@ public class DiskInfoControl : UtilityControl
                     $"{freePercent:0.#}%");
 
                 if (freePercent < 10)
-                    grid.Rows[rowIndex].DefaultCellStyle.BackColor = Color.MistyRose;
+                    grid.Rows[rowIndex].DefaultCellStyle.BackColor = Theme.DangerBackground;
             }
             catch (Exception)
             {

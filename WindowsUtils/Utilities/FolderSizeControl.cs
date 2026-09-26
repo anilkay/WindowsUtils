@@ -32,7 +32,7 @@ public class FolderSizeControl : UtilityControl
             Margin = new Padding(4, 8, 4, 4),
         };
         var browseButton = new Button { Text = "Browse...", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
-        var analyzeButton = new Button { Text = "Analyze", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
+        var analyzeButton = new Button { Text = "Analyze", AutoSize = true, Margin = new Padding(4, 6, 4, 4) }.AsAccent();
         _statusLabel.AutoSize = true;
         _statusLabel.Margin = new Padding(12, 12, 4, 4);
 
