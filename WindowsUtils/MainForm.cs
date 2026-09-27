@@ -21,7 +21,7 @@ public class MainForm : Form
         ("File Hash Calculator", "\uE928", "Compute and verify MD5, SHA-1, SHA-256 and SHA-512 hashes.", () => new FileHashControl()),
         ("Environment Variables", "\uE943", "Browse user, machine and process variables.", () => new EnvironmentVariablesControl()),
         ("Startup Programs", "\uE7E8", "Programs registered to start with Windows.", () => new StartupProgramsControl()),
-        ("Local Users", "", "Local user accounts, their status and last logon.", () => new LocalUsersControl()),
+        ("Local Users", "\uE716", "Local user accounts, their status and last logon.", () => new LocalUsersControl()),
         ("Folder Size Analyzer", "\uE8B7", "See what takes up space inside a folder.", () => new FolderSizeControl()),
         ("Largest Files", "\uE8A5", "Find the biggest files on your drives.", () => new LargestFilesControl()),
         ("Duplicate Files", "\uE8C8", "Find identical files and free up space.", () => new DuplicateFilesControl()),
