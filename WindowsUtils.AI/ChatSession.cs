@@ -72,6 +72,8 @@ public sealed class ChatSession
             AIFunctionFactory.Create(new Func<string>(PcTools.GetCurrentTime)),
             AIFunctionFactory.Create(new Func<string>(PcTools.GetSystemInfo)),
             AIFunctionFactory.Create(new Func<string>(PcTools.GetJavaVersion)),
+            AIFunctionFactory.Create(new Func<string>(PcTools.GetPythonVersion)),
+            AIFunctionFactory.Create(new Func<string>(PcTools.GetNodeVersion)),
             AIFunctionFactory.Create(new Func<int, string>(PcTools.GetProcesses)),
             AIFunctionFactory.Create(new Func<string>(PcTools.GetDrives)),
             AIFunctionFactory.Create(new Func<string, string, int, string>(PcTools.ListFiles)),

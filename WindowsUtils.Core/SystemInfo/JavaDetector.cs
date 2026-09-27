@@ -1,19 +1,11 @@
-using System.Diagnostics;
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 
 namespace WindowsUtils.Core.SystemInfo;
 
-/// <summary>A Java installation (JDK or JRE) found on this PC.</summary>
-/// <param name="Version">e.g. "21.0.4", or "Unknown" if it cannot be read.</param>
-/// <param name="Vendor">e.g. "Eclipse Adoptium", or "" if unknown.</param>
-/// <param name="Home">Installation folder (the one that contains bin\java.exe).</param>
-/// <param name="Source">Where it was found: JAVA_HOME, PATH or Registry.</param>
-public sealed record JavaInstallation(string Version, string Vendor, string Home, string Source);
-
 /// <summary>
-/// Finds installed Java runtimes without running java.exe: JAVA_HOME, the registry keys
-/// written by common JDK/JRE installers, then java.exe on PATH. Versions come from the
+/// Finds installed Java runtimes (JDK/JRE) without running java.exe: JAVA_HOME, the registry
+/// keys written by common JDK/JRE installers, then java.exe on PATH. Versions come from the
 /// installation's "release" file, falling back to java.exe's file version.
 /// </summary>
 public static class JavaDetector
@@ -44,21 +36,29 @@ public static class JavaDetector
     /// points at a valid install, otherwise java.exe on PATH, otherwise the newest registry entry.
     /// Returns an empty list when Java is not installed.
     /// </summary>
-    public static IReadOnlyList<JavaInstallation> Find()
+    public static IReadOnlyList<RuntimeInstallation> Find()
     {
-        var result = new List<JavaInstallation>();
+        var found = new RuntimeProbe.Collector();
         if (!OperatingSystem.IsWindows())
-            return result;
+            return found.Items;
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         void Add(string? home, string source)
         {
-            var normalized = NormalizeHome(home);
-            if (normalized is not null && seen.Add(normalized))
-                result.Add(Describe(normalized, source));
+            var valid = ValidHome(home);
+            if (valid is not null)
+                found.TryAdd(valid, h => Describe(h, source));
         }
 
         Add(Environment.GetEnvironmentVariable("JAVA_HOME"), "JAVA_HOME");
+        foreach (var exe in RuntimeProbe.FindOnPath("java.exe"))
+        {
+            var home = ValidHome(Path.GetDirectoryName(Path.GetDirectoryName(exe)));
+            if (home is not null)
+            {
+                found.TryAdd(home, h => Describe(h, "PATH"));
+                break;
+            }
+        }
 
         var fromRegistry = new List<string>();
         foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
@@ -79,17 +79,11 @@ public static class JavaDetector
             }
         }
 
-        Add(FindOnPath(), "PATH");
-
-        var registryInstalls = new List<JavaInstallation>();
+        var start = found.Items.Count;
         foreach (var home in fromRegistry)
-        {
-            var normalized = NormalizeHome(home);
-            if (normalized is not null && seen.Add(normalized))
-                registryInstalls.Add(Describe(normalized, "Registry"));
-        }
-        result.AddRange(registryInstalls.OrderByDescending(i => ParseVersion(i.Version)));
-        return result;
+            Add(home, "Registry");
+        found.SortNewestFirst(start);
+        return found.Items;
     }
 
     // Vendor keys nest the path 1-3 levels down, e.g. Eclipse Adoptium\JDK\21.0.4.7\hotspot\MSI.
@@ -118,58 +112,14 @@ public static class JavaDetector
         }
     }
 
-    private static string? FindOnPath()
-    {
-        var path = Environment.GetEnvironmentVariable("PATH");
-        if (string.IsNullOrEmpty(path))
-            return null;
-        foreach (var entry in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            try
-            {
-                var dir = Path.GetFullPath(Environment.ExpandEnvironmentVariables(entry.Trim('"')));
-                // Local drives only: probing a UNC PATH entry can hang or send credentials.
-                if (!IsLocalDrivePath(dir))
-                    continue;
-                var exe = Path.Combine(dir, "java.exe");
-                if (!File.Exists(exe))
-                    continue;
-                // The Oracle installer adds a javapath folder of links; resolve them to the real install.
-                var target = new FileInfo(exe).ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? exe;
-                var home = NormalizeHome(Path.GetDirectoryName(Path.GetDirectoryName(target)));
-                if (home is not null)
-                    return home;
-            }
-            catch (Exception)
-            {
-                // Malformed or unreadable PATH entry - skip it.
-            }
-        }
-        return null;
-    }
-
     /// <summary>Returns the full path if the folder contains bin\java.exe, otherwise null.</summary>
-    private static string? NormalizeHome(string? home)
+    private static string? ValidHome(string? home)
     {
-        if (string.IsNullOrWhiteSpace(home))
-            return null;
-        try
-        {
-            var full = Path.GetFullPath(home.Trim().Trim('"')).TrimEnd('\\');
-            if (!IsLocalDrivePath(full))
-                return null;
-            return File.Exists(Path.Combine(full, "bin", "java.exe")) ? full : null;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
+        var full = RuntimeProbe.LocalFullPath(home);
+        return full is not null && File.Exists(Path.Combine(full, "bin", "java.exe")) ? full : null;
     }
 
-    private static bool IsLocalDrivePath(string path) =>
-        path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':';
-
-    private static JavaInstallation Describe(string home, string source)
+    private static RuntimeInstallation Describe(string home, string source)
     {
         string? version = null;
         var vendor = "";
@@ -199,36 +149,11 @@ public static class JavaDetector
 
         if (string.IsNullOrEmpty(version))
         {
-            try
-            {
-                var info = FileVersionInfo.GetVersionInfo(Path.Combine(home, "bin", "java.exe"));
-                version = info.ProductVersion ?? info.FileVersion;
-                if (vendor.Length == 0)
-                    vendor = info.CompanyName ?? "";
-            }
-            catch (Exception)
-            {
-                // Ignore; version stays unknown.
-            }
+            version = RuntimeProbe.FileProductVersion(Path.Combine(home, "bin", "java.exe"), out var company);
+            if (vendor.Length == 0)
+                vendor = company;
         }
 
-        return new JavaInstallation(string.IsNullOrWhiteSpace(version) ? "Unknown" : version.Trim(), vendor.Trim(), home, source);
+        return new RuntimeInstallation(string.IsNullOrWhiteSpace(version) ? "Unknown" : version.Trim(), vendor.Trim(), home, source);
     }
-
-    // Java versions look like "1.8.0_402" or "21.0.4"; compare the numeric parts in order.
-    private static Version ParseVersion(string version)
-    {
-        var parts = version.Split(['.', '_', '+', '-'], StringSplitOptions.RemoveEmptyEntries)
-            .Select(p => int.TryParse(p, out var n) ? n : 0)
-            .Concat([0, 0, 0, 0])
-            .Take(4)
-            .ToArray();
-        if (parts[0] == 1 && parts[1] >= 2)
-            parts = [parts[1], 0, parts[2], parts[3]]; // 1.8.0_402 -> 8.0.0.402
-        return new Version(parts[0], parts[1], parts[2], parts[3]);
-    }
-
-    /// <summary>Short display text, e.g. "21.0.4 (Eclipse Adoptium)".</summary>
-    public static string Format(JavaInstallation java) =>
-        java.Vendor.Length > 0 ? $"{java.Version} ({java.Vendor})" : java.Version;
 }

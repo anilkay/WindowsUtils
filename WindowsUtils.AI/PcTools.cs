@@ -56,15 +56,29 @@ public static class PcTools
 
     [Description("Gets the installed Java version(s) (JDK/JRE): version, vendor, install folder and where it was found "
         + "(JAVA_HOME, registry or PATH). The first one listed is the default. Read-only.")]
-    public static string GetJavaVersion()
+    public static string GetJavaVersion() =>
+        DescribeRuntimes(JavaDetector.Find, "Java", "JAVA_HOME, the registry or PATH");
+
+    [Description("Gets the installed Python version(s): version, vendor, install folder and where it was found "
+        + "(PATH, PEP 514 registry keys as listed by the py launcher, the Python install manager, or pyenv). "
+        + "The first one listed is the default. Read-only.")]
+    public static string GetPythonVersion() =>
+        DescribeRuntimes(PythonDetector.Find, "Python", "PATH, the registry, the Python install manager or pyenv");
+
+    [Description("Gets the installed Node.js version(s): version, install folder and where it was found "
+        + "(PATH, installer registry key, nvm, Volta or fnm). The first one listed is the default. Read-only.")]
+    public static string GetNodeVersion() =>
+        DescribeRuntimes(NodeDetector.Find, "Node.js", "PATH, the registry, nvm, Volta or fnm");
+
+    private static string DescribeRuntimes(Func<IReadOnlyList<RuntimeInstallation>> find, string name, string searched)
     {
         try
         {
-            var installs = JavaDetector.Find();
+            var installs = find();
             if (installs.Count == 0)
-                return "Java is not installed (nothing found via JAVA_HOME, the registry or PATH).";
-            return string.Join(Environment.NewLine, installs.Take(20).Select((j, i) =>
-                $"{(i == 0 ? "Default: " : "")}{JavaDetector.Format(j)} at {j.Home} [{j.Source}]"));
+                return $"{name} is not installed (nothing found via {searched}).";
+            return string.Join(Environment.NewLine, installs.Take(20).Select((r, i) =>
+                $"{(i == 0 ? "Default: " : "")}{r.Display} at {r.Home} [{r.Source}]"));
         }
         catch (Exception ex)
         {

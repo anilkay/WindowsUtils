@@ -15,26 +15,27 @@ public class SystemInfoControl : UtilityControl
 
         foreach (var (name, value) in Collect())
             grid.Rows.Add(name, value);
-        AddJavaRows(grid);
+        AddRuntimeRows(grid, "Java", JavaDetector.Find());
+        AddRuntimeRows(grid, "Python", PythonDetector.Find());
+        AddRuntimeRows(grid, "Node.js", NodeDetector.Find());
 
         Controls.Add(grid);
     }
 
-    private static void AddJavaRows(DataGridView grid)
+    private static void AddRuntimeRows(DataGridView grid, string name, IReadOnlyList<RuntimeInstallation> installs)
     {
-        var installs = JavaDetector.Find();
         if (installs.Count == 0)
         {
-            var row = grid.Rows[grid.Rows.Add("Java", "Not installed")];
+            var row = grid.Rows[grid.Rows.Add(name, "Not installed")];
             row.Cells[1].Style.ForeColor = Theme.SubtleText;
             return;
         }
 
-        var java = installs[0];
-        grid.Rows.Add("Java", JavaDetector.Format(java));
-        grid.Rows.Add("Java Home", $"{java.Home}  ({java.Source})");
+        var main = installs[0];
+        grid.Rows.Add(name, main.Display);
+        grid.Rows.Add($"{name} Location", $"{main.Home}  ({main.Source})");
         if (installs.Count > 1)
-            grid.Rows.Add("Other Java Installs", string.Join(", ", installs.Skip(1).Select(JavaDetector.Format)));
+            grid.Rows.Add($"Other {name} Installs", string.Join(", ", installs.Skip(1).Select(i => i.Display)));
     }
 
     private static IEnumerable<(string Name, string Value)> Collect()

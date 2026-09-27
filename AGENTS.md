@@ -24,7 +24,10 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── Net/NetworkInfo.cs    # network adapters + ping
 ├── SystemInfo/StartupPrograms.cs # registry Run/RunOnce entries (read-only)
 ├── SystemInfo/LocalUsers.cs # local user accounts via netapi32 NetUserEnum (read-only)
-└── SystemInfo/JavaDetector.cs # installed Java: JAVA_HOME, vendor registry keys, PATH; reads the "release" file
+├── SystemInfo/RuntimeInstallation.cs # shared record + probe helpers (PATH search, link resolution, version sort) for the runtime detectors
+├── SystemInfo/JavaDetector.cs # installed Java: JAVA_HOME, vendor registry keys, PATH; reads the "release" file
+├── SystemInfo/PythonDetector.cs # installed Python: PATH (skips WindowsApps aliases), PEP 514 registry keys, Python install manager (%LOCALAPPDATA%\Python), pyenv-win
+└── SystemInfo/NodeDetector.cs # installed Node.js: PATH, installer registry key, nvm-windows, Volta, fnm
 WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── ChatSession.cs        # agent creation, session, streaming, reasoning-effort retry
 ├── PcTools.cs            # read-only PC inspection tools exposed to the agent
