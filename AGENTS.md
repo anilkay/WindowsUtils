@@ -23,6 +23,7 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── IO/RecycleBin.cs      # send to Recycle Bin via shell, asks before permanent delete
 ├── Net/NetworkInfo.cs    # network adapters + ping
 ├── SystemInfo/StartupPrograms.cs # registry Run/RunOnce entries (read-only)
+├── SystemInfo/LocalUsers.cs # local user accounts via netapi32 NetUserEnum (read-only)
 └── SystemInfo/JavaDetector.cs # installed Java: JAVA_HOME, vendor registry keys, PATH; reads the "release" file
 WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── ChatSession.cs        # agent creation, session, streaming, reasoning-effort retry
@@ -39,7 +40,7 @@ WindowsUtils/            # WinForms app (net10.0-windows), references Core
     └── *Control.cs       # one self-contained UserControl per utility
 ```
 
-Current utilities: System Information, Disk Info, Network Info, File Hash Calculator, Environment Variables, Startup Programs, Folder Size Analyzer, Largest Files, Duplicate Files, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
+Current utilities: System Information, Disk Info, Network Info, File Hash Calculator, Environment Variables, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
 
 ## Conventions
 

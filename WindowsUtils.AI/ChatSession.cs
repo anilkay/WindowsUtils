@@ -80,6 +80,7 @@ public sealed class ChatSession
             AIFunctionFactory.Create(new Func<string, int, int, CancellationToken, string>(PcTools.FindDuplicateFiles)),
             AIFunctionFactory.Create(new Func<string, int, CancellationToken, string>(PcTools.GetFolderSizes)),
             AIFunctionFactory.Create(new Func<string>(PcTools.GetStartupPrograms)),
+            AIFunctionFactory.Create(new Func<string>(PcTools.GetLocalUsers)),
             AIFunctionFactory.Create(new Func<string>(PcTools.GetNetworkAdapters)),
             AIFunctionFactory.Create(new Func<string, int, CancellationToken, Task<string>>(PcTools.PingHost)),
             AIFunctionFactory.Create(new Func<string, int, string>(PcTools.ReadTextFile)),

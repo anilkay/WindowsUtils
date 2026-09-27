@@ -300,6 +300,27 @@ public static class PcTools
         }
     }
 
+    [Description("Lists the local user accounts on this PC: name, full name, enabled/disabled/locked, administrator or not, "
+        + "last logon, password last set and description. Read-only.")]
+    public static string GetLocalUsers()
+    {
+        try
+        {
+            var accounts = LocalUsers.GetAccounts();
+            if (accounts.Count == 0)
+                return "(no local user accounts found)";
+            return string.Join(Environment.NewLine, accounts.Take(100).Select(a =>
+                $"{a.Name}{(a.FullName.Length > 0 ? $" ({a.FullName})" : "")}: {LocalUsers.FormatStatus(a)}, {LocalUsers.FormatType(a)}, "
+                + $"last logon {a.LastLogon?.ToString("g") ?? "never"}, "
+                + $"password set {a.PasswordLastSet?.ToString("g") ?? "unknown"}{(a.PasswordNeverExpires ? " (never expires)" : "")}"
+                + (a.Description.Length > 0 ? $", \"{a.Description}\"" : "")));
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
     [Description("Lists network adapters with type, status, IPv4/IPv6 addresses and MAC address.")]
     public static string GetNetworkAdapters()
     {
