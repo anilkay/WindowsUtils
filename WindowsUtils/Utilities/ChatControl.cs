@@ -23,6 +23,10 @@ public class ChatControl : UtilityControl
     private readonly ChatTranscriptView _transcript = new();
     private readonly TextBox _inputBox = new();
     private readonly Label _statusLabel = new();
+    // Ticks while a reply is pending so the status shows how long the current step has taken.
+    private readonly System.Windows.Forms.Timer _activityTimer = new() { Interval = 1000 };
+    private readonly System.Diagnostics.Stopwatch _activityWatch = new();
+    private string? _activityText;
 
     private ChatSession? _chatSession;
     private string? _sessionCacheKey;
@@ -136,6 +140,9 @@ public class ChatControl : UtilityControl
         Controls.Add(statusBar);
         Controls.Add(bottomPanel);
         Controls.Add(settingsPanel);
+
+        _activityTimer.Tick += (_, _) => ShowActivity();
+        Disposed += (_, _) => _activityTimer.Dispose();
 
         LoadPersistedSettings();
     }
@@ -366,9 +373,10 @@ public class ChatControl : UtilityControl
         _sendButton.Enabled = false;
         _stopButton.Enabled = true;
         _inputBox.Clear();
-        _statusLabel.Text = "Thinking... (the agent may call tools)";
         _transcript.AddUserMessage(prompt);
         _transcript.BeginAssistantMessage();
+        SetActivity(new ChatStreamUpdate(ChatActivity.Waiting));
+        _activityTimer.Start();
 
         try
         {
@@ -386,7 +394,7 @@ public class ChatControl : UtilityControl
                 _transcript.EndAssistantMessage();
                 _transcript.AddNote("The model does not support reasoning_effort, retrying without it.");
                 _transcript.BeginAssistantMessage();
-                _statusLabel.Text = "Retrying without reasoning_effort...";
+                SetActivity(new ChatStreamUpdate(ChatActivity.Waiting));
                 await StreamAsync(session, prompt, token);
             }
             _transcript.EndAssistantMessage();
@@ -397,6 +405,14 @@ public class ChatControl : UtilityControl
             _transcript.EndAssistantMessage();
             _transcript.AddNote("Cancelled.");
             _statusLabel.Text = "Cancelled.";
+        }
+        catch (TimeoutException ex)
+        {
+            // The endpoint went silent. The session is still valid (the failed turn is not in
+            // its history), so keep it: sending again continues the same conversation.
+            _transcript.EndAssistantMessage();
+            _transcript.AddError($"No response: {ex.Message}");
+            _statusLabel.Text = "No response from the endpoint.";
         }
         catch (Exception ex)
         {
@@ -412,6 +428,9 @@ public class ChatControl : UtilityControl
         }
         finally
         {
+            _activityTimer.Stop();
+            _activityWatch.Reset();
+            _activityText = null;
             _sendButton.Enabled = true;
             _stopButton.Enabled = false;
         }
@@ -419,7 +438,35 @@ public class ChatControl : UtilityControl
 
     private async Task StreamAsync(ChatSession session, string prompt, CancellationToken token)
     {
-        await foreach (var text in session.StreamResponseAsync(prompt, token))
-            _transcript.AppendAssistantText(text);
+        await foreach (var update in session.StreamResponseAsync(prompt, token))
+        {
+            if (update.Text is not null)
+                _transcript.AppendAssistantText(update.Text);
+            SetActivity(update);
+        }
+    }
+
+    /// <summary>Shows what the agent is doing; the elapsed time restarts when the step changes.</summary>
+    private void SetActivity(ChatStreamUpdate update)
+    {
+        var text = update.Activity switch
+        {
+            ChatActivity.Thinking => "The model is thinking...",
+            ChatActivity.RunningTool => $"Running tool {update.ToolName}...",
+            ChatActivity.Writing => "Writing...",
+            _ => "Waiting for the model...",
+        };
+        if (text != _activityText)
+        {
+            _activityText = text;
+            _activityWatch.Restart();
+        }
+        ShowActivity();
+    }
+
+    private void ShowActivity()
+    {
+        var seconds = (int)_activityWatch.Elapsed.TotalSeconds;
+        _statusLabel.Text = seconds > 0 ? $"{_activityText} ({seconds} s)" : _activityText;
     }
 }
