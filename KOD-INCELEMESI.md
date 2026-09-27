@@ -2,13 +2,13 @@
 
 **Tarih:** 2026-09-26. **Kapsam:** `main` üzerindeki kaynak kodun tamamı (commit `f20c27c`, sonra gelen `cdb36f6` ve `dbc8b81` dahil): 3 proje. Diff değil, bütün kod okundu. Satır numaraları bu dosyanın yazıldığı sıradaki koda göredir.
 
-**Özet:** 2 Yüksek, 2 Orta, 4 Düşük. 3 bulgu düzeltildi (1, 2, 7).
+**Özet:** 2 Yüksek, 2 Orta, 4 Düşük. 4 bulgu düzeltildi (1, 2, 3, 7).
 
 | # | Önem | Durum | Konum | Sorun |
 |---|---|---|---|---|
 | 1 | Yüksek | Düzeltildi | `LargestFilesControl.cs` silme | Geri Dönüşüm Kutusu'na gidemeyen dosyalar uyarı verilmeden kalıcı olarak siliniyordu |
 | 2 | Yüksek | Düzeltildi | `PcTools.cs` yol alan araçlar | AI araçları UNC yollarını kabul ediyordu: NTLM kimlik bilgisi sızıntısı ve dışarıya veri kanalı |
-| 3 | Orta | Açık | `PcTools.cs:222-256`, `ChatSession.cs:70-91` | AI ajanı her dosyayı ve ortam değişkenini onay almadan okuyup uç noktaya gönderebiliyor |
+| 3 | Orta | Düzeltildi | `PcTools.cs:222-256`, `ChatSession.cs:70-91` | AI ajanı her dosyayı ve ortam değişkenini onay almadan okuyup uç noktaya gönderebiliyor |
 | 4 | Orta | Açık | `ChatControl.cs:232-238, 277-286` | reasoning_effort geri dönüşünden sonraki mesajda konuşma geçmişi kayboluyor |
 | 5 | Düşük | Açık | `ChatControl.cs:105-111, 307-311` | Yanıt akarken Enter ikinci bir istek başlatıyor ve Stop devre dışı kalıyor |
 | 6 | Düşük | Açık | `PcTools.cs:166, 234, 275, 308` | AI araçları iptal edilemiyor; ReadTextFile dosyanın tamamını belleğe okuyor |
@@ -35,13 +35,15 @@ Yolu model seçiyordu ve yol hiçbir kontrolden geçmeden `File.Exists` / `Direc
 
 **Düzeltme:** `PcTools.ToLocalPath` yolu `Path.GetFullPath` ile normalleştiriyor. Bu işlem yalnızca metin üzerinde çalışıyor ve ağa dokunmuyor. Ardından yalnızca `X:\` ile başlayan sürücü yollarına izin veriyor. UNC, `//`, `\\?\`, `\\.\` ve `\??\` yolları, dosya sistemine hiçbir çağrı yapılmadan reddediliyor. Bütün yol alan araçlar bu kontrolden geçiyor. `Documents`, `Desktop` gibi kısayollar da önceki gibi çalışıyor. Not: Kullanıcının kendi eşlediği ağ sürücüleri (ör. `Z:\`) hâlâ kullanılabiliyor, çünkü o sunucuyu model değil kullanıcı seçmiş.
 
-## 3. [Orta, açık] AI ajanı her dosyayı ve ortam değişkenini onay almadan okuyup uç noktaya gönderebiliyor
+## 3. [Orta, düzeltildi] AI ajanı her dosyayı ve ortam değişkenini onay almadan okuyup uç noktaya gönderebiliyor
 
 **Konum:** `WindowsUtils.AI/PcTools.cs:222-256` (ReadTextFile, GetEnvironmentVariable), listeleme araçları `:108-178`; araçların kaydı `ChatSession.cs:70-91`
 
 Hangi aracın hangi argümanla çalışacağını uzaktaki model belirliyor. Uygulama her çağrıyı otomatik olarak çalıştırıp sonucunu uç noktaya gönderiyor. İzin verilen klasörler listesi, hassas konumlar için bir engel ya da kullanıcı onayı yok. SSH anahtarları (`%USERPROFILE%\.ssh`), bulut CLI kimlik dosyaları, `.env` dosyaları ve ortam değişkenlerindeki token'lar modele ve uç noktaya gidebiliyor. Uç nokta serbestçe ayarlanabildiğinden (üçüncü taraf proxy'ler dahil) uç noktayı işleten taraf bu dosyaları fiilen okuyabilir. Güvenilir bir uç noktada bile dolaylı prompt injection aynı okumayı tetikleyebilir.
 
 **Öneri:** Araçları kullanıcının seçtiği klasörlerle sınırlamak ve hassas yolları ile değişkenleri engellemek. Ya da dosya okuma ve ortam değişkeni araçları için kullanıcı onayı istemek.
+
+**Düzeltme (2026-09-27):** İkinci yol seçildi. `ReadTextFile` ve `GetEnvironmentVariable` artık `ApprovalRequiredAIFunction` olarak kayıtlı. `ChatSession.StreamResponseAsync` bu araçlar çalışmadan önce duruyor ve çağıranın onay fonksiyonuna soruyor; AI Chat ekranı dosya yolunu veya değişken adını ve verinin gideceği uç noktayı gösteren bir Evet/Hayır penceresi açıyor (varsayılan Hayır). Onay fonksiyonu verilmezse bu çağrılar reddediliyor. Listeleme araçları (dosya adları, boyutlar) hâlâ onaysız çalışıyor. Ayrıntılar: `AI-ARACLARI-GUVENLIK.md`.
 
 ## 4. [Orta, açık] reasoning_effort'a otomatik geri dönüşten sonra gelen mesajda konuşma geçmişi siliniyor
 

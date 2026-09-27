@@ -446,7 +446,7 @@ public static class PcTools
     private static string LocalOnlyMessage(string path) =>
         $"Only local drive paths (e.g. C:\\Temp\\file.txt) are allowed; network and device paths are blocked: {path}";
 
-    [Description("Reads a text file. Read-only.")]
+    [Description("Reads a text file. Read-only. The user is asked to allow each call.")]
     public static string ReadTextFile(
         [Description("Full file path.")] string path,
         [Description("Maximum characters to return (max 20000).")] int maxChars = 8000)
@@ -468,7 +468,7 @@ public static class PcTools
         }
     }
 
-    [Description("Gets the value of an environment variable.")]
+    [Description("Gets the value of an environment variable. The user is asked to allow each call.")]
     public static string GetEnvironmentVariable(
         [Description("Variable name, e.g. PATH.")] string name)
     {
