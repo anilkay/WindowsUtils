@@ -54,6 +54,12 @@ public static class PcTools
         }
     }
 
+    [Description("Gets the installed .NET Framework version(s) (4.5-4.8.1 from the v4 Release value, plus older "
+        + "side-by-side 3.5/3.0/2.0/1.1 installs): version, build number, folder and registry key. "
+        + "The first one listed is the newest. This is .NET Framework, not modern .NET (5+). Read-only.")]
+    public static string GetNetFrameworkVersion() =>
+        DescribeRuntimes(NetFrameworkDetector.Find, ".NET Framework", @"the NET Framework Setup\NDP registry keys");
+
     [Description("Gets the installed Java version(s) (JDK/JRE): version, vendor, install folder and where it was found "
         + "(JAVA_HOME, registry or PATH). The first one listed is the default. Read-only.")]
     public static string GetJavaVersion() =>
