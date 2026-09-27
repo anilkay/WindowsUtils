@@ -438,12 +438,24 @@ public class ChatControl : UtilityControl
 
     private async Task StreamAsync(ChatSession session, string prompt, CancellationToken token)
     {
-        await foreach (var update in session.StreamResponseAsync(prompt, token))
+        await foreach (var update in session.StreamResponseAsync(prompt, ApproveToolCall, token))
         {
             if (update.Text is not null)
                 _transcript.AppendAssistantText(update.Text);
             SetActivity(update);
         }
+    }
+
+    /// <summary>Asks before a tool reads a file's text or an environment variable. No is the default.</summary>
+    private Task<bool> ApproveToolCall(ToolApprovalRequest request, CancellationToken token)
+    {
+        // Through the activity text, so the ticking timer keeps showing it while the box is open.
+        _activityText = $"Waiting for your permission to run {request.ToolName}...";
+        _activityWatch.Restart();
+        ShowActivity();
+        var answer = MessageBox.Show(this, request.Prompt, "AI Chat",
+            MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+        return Task.FromResult(answer == DialogResult.Yes);
     }
 
     /// <summary>Shows what the agent is doing; the elapsed time restarts when the step changes.</summary>

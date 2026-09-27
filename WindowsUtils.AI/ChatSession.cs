@@ -46,6 +46,11 @@ public enum ChatActivity
 /// <summary>One streamed item: the current activity, plus answer text to append when <see cref="Text"/> is set.</summary>
 public readonly record struct ChatStreamUpdate(ChatActivity Activity, string? Text = null, string? ToolName = null);
 
+/// <summary>A tool call that runs only if the user allows it (see <see cref="ChatSession.StreamResponseAsync"/>).</summary>
+/// <param name="ToolName">The tool the model asked for, e.g. ReadTextFile.</param>
+/// <param name="Prompt">A ready-to-show question naming what would be read and where it is sent.</param>
+public sealed record ToolApprovalRequest(string ToolName, string Prompt);
+
 /// <summary>
 /// Owns the <see cref="AIAgent"/> and its conversation session.
 /// UI-agnostic: usable from WinForms, console apps, services, etc.
@@ -55,7 +60,9 @@ public sealed class ChatSession
     private const string DefaultInstructions =
         "You are a helpful Windows PC assistant running inside the WindowsUtils app. " +
         "Use the provided tools whenever the user asks about this PC (system, processes, drives, files). " +
-        "All tools are read-only; never claim to change anything. Keep answers concise.";
+        "All tools are read-only; never claim to change anything. " +
+        "Reading a file's text or an environment variable asks the user first; if the user declines, " +
+        "do not ask for the same item again, just say you were not allowed. Keep answers concise.";
 
     /// <summary>Default for <see cref="ChatAgentOptions.ResponseTimeout"/>. Reasoning models stream
     /// their thinking, which counts as data, so only a silent endpoint hits this. Kept below the
@@ -111,8 +118,10 @@ public sealed class ChatSession
             AIFunctionFactory.Create(new Func<string>(PcTools.GetLocalUsers)),
             AIFunctionFactory.Create(new Func<string>(PcTools.GetNetworkAdapters)),
             AIFunctionFactory.Create(new Func<string, int, CancellationToken, Task<string>>(PcTools.PingHost)),
-            AIFunctionFactory.Create(new Func<string, int, string>(PcTools.ReadTextFile)),
-            AIFunctionFactory.Create(new Func<string, string>(PcTools.GetEnvironmentVariable)),
+            // These return file contents and environment variable values (which can hold secrets),
+            // so each call waits for the user's permission; see StreamResponseAsync.
+            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(new Func<string, int, string>(PcTools.ReadTextFile))),
+            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(new Func<string, string>(PcTools.GetEnvironmentVariable))),
             AIFunctionFactory.Create(new Func<string, string, string>(PcTools.ComputeFileHash)),
             AIFunctionFactory.Create(new Func<string, string, string>(PcTools.VerifyFileHash)),
         ];
@@ -178,33 +187,81 @@ public sealed class ChatSession
     // leave the session in an unusable state (e.g. a 400 mid-run).
     // A TimeoutException (silent endpoint) leaves the session intact: the failed turn is
     // not added to the history, so the conversation can simply continue.
+    /// <param name="approveToolCall">Asked before each tool call that needs the user's permission
+    /// (ReadTextFile, GetEnvironmentVariable); returns true to run it. When null, those calls are declined.</param>
     public async IAsyncEnumerable<ChatStreamUpdate> StreamResponseAsync(
         string prompt,
+        Func<ToolApprovalRequest, CancellationToken, Task<bool>>? approveToolCall = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var session = _session ??= await _agent.CreateSessionAsync(cancellationToken);
-        await foreach (var update in _agent.RunStreamingAsync(prompt, session, cancellationToken: cancellationToken))
+        List<Microsoft.Extensions.AI.ChatMessage> input = [new(ChatRole.User, prompt)];
+        while (true)
         {
-            foreach (var content in update.Contents)
+            var approvals = new List<ToolApprovalRequestContent>();
+            await foreach (var update in _agent.RunStreamingAsync(input, session, cancellationToken: cancellationToken))
             {
-                switch (content)
+                foreach (var content in update.Contents)
                 {
-                    case TextContent { Text.Length: > 0 } text:
-                        yield return new(ChatActivity.Writing, text.Text);
-                        break;
-                    case TextReasoningContent:
-                        yield return new(ChatActivity.Thinking);
-                        break;
-                    case FunctionCallContent call:
-                        yield return new(ChatActivity.RunningTool, ToolName: call.Name);
-                        break;
-                    case FunctionResultContent:
-                        // The tool finished; its result goes back to the model.
-                        yield return new(ChatActivity.Waiting);
-                        break;
+                    switch (content)
+                    {
+                        case TextContent { Text.Length: > 0 } text:
+                            yield return new(ChatActivity.Writing, text.Text);
+                            break;
+                        case TextReasoningContent:
+                            yield return new(ChatActivity.Thinking);
+                            break;
+                        case FunctionCallContent call:
+                            yield return new(ChatActivity.RunningTool, ToolName: call.Name);
+                            break;
+                        case FunctionResultContent:
+                            // The tool finished; its result goes back to the model.
+                            yield return new(ChatActivity.Waiting);
+                            break;
+                        case ToolApprovalRequestContent approval:
+                            approvals.Add(approval);
+                            break;
+                    }
                 }
             }
+            if (approvals.Count == 0)
+                yield break;
+
+            // The run stopped before calling tools that need permission (the agent already runs the
+            // other tools of the same batch itself). Send back one answer per request: approved
+            // calls then run, declined ones reach the model as rejected.
+            var answers = new List<AIContent>(approvals.Count);
+            foreach (var approval in approvals)
+            {
+                var approved = approveToolCall is not null
+                    && await approveToolCall(DescribeToolCall(approval.ToolCall), cancellationToken);
+                answers.Add(approval.CreateResponse(approved, approved ? null : "The user did not allow this tool call."));
+            }
+            input = [new(ChatRole.User, answers)];
+            yield return new(ChatActivity.Waiting);
         }
+    }
+
+    // The question shown before a tool call runs. The path is shown the way ReadTextFile resolves it.
+    private ToolApprovalRequest DescribeToolCall(ToolCallContent toolCall)
+    {
+        var destination = Uri.TryCreate(_options.Endpoint, UriKind.Absolute, out var uri) ? uri.Authority : _options.Endpoint;
+        if (toolCall is not FunctionCallContent call)
+            return new(toolCall.GetType().Name, $"The AI model wants to run a tool. Its result will be sent to {destination}.\n\nAllow?");
+
+        string Argument(string name) =>
+            call.Arguments is not null && call.Arguments.TryGetValue(name, out var value) ? value?.ToString() ?? "" : "";
+        var prompt = call.Name switch
+        {
+            nameof(PcTools.ReadTextFile) =>
+                $"The AI model wants to read this file:\n\n{PcTools.ToLocalPath(Argument("path")) ?? Argument("path")}\n\n"
+                + $"Its text will be sent to {destination}.",
+            nameof(PcTools.GetEnvironmentVariable) =>
+                $"The AI model wants to read this environment variable:\n\n{Argument("name")}\n\n"
+                + $"Its value will be sent to {destination}.",
+            _ => $"The AI model wants to run the tool {call.Name}. Its result will be sent to {destination}.",
+        };
+        return new(call.Name, prompt + "\n\nAllow?");
     }
 
     public static bool IsReasoningEffortError(Exception ex)
