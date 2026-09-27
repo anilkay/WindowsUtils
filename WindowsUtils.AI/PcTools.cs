@@ -86,6 +86,23 @@ public static class PcTools
         }
     }
 
+    [Description("Checks which optional Windows features are enabled: Telnet Client/Server, TFTP, IIS (and its W3SVC service), "
+        + "IIS FTP, SMB 1.0, Hyper-V, WSL, Virtual Machine Platform, Windows Sandbox, .NET Framework 3.5, OpenSSH Server. Read-only.")]
+    public static string GetWindowsFeatures()
+    {
+        try
+        {
+            var features = WindowsFeatures.Get();
+            if (features.Count == 0)
+                return "(could not read Windows features)";
+            return string.Join(Environment.NewLine, features.Select(f => $"{f.Name} [{f.Id}]: {f.Display}"));
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
     [Description("Lists the top running processes by memory usage.")]
     public static string GetProcesses(
         [Description("Maximum number of processes to return (1-30).")] int maxProcesses = 10)

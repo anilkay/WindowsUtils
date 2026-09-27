@@ -20,6 +20,35 @@ public class SystemInfoControl : UtilityControl
         AddRuntimeRows(grid, "Node.js", NodeDetector.Find());
 
         Controls.Add(grid);
+        _ = AddFeatureRowsAsync(grid);
+    }
+
+    // WMI takes about a second, so the feature rows are filled in after the screen appears.
+    private static async Task AddFeatureRowsAsync(DataGridView grid)
+    {
+        var loading = grid.Rows[grid.Rows.Add("Windows Features", "Checking...")];
+        loading.Cells[1].Style.ForeColor = Theme.SubtleText;
+
+        IReadOnlyList<WindowsFeature> features;
+        try
+        {
+            features = await Task.Run(WindowsFeatures.Get);
+        }
+        catch (Exception ex)
+        {
+            features = [];
+            loading.Cells[1].Value = $"Could not read: {ex.Message}";
+        }
+        if (grid.IsDisposed || features.Count == 0)
+            return;
+
+        grid.Rows.Remove(loading);
+        foreach (var f in features)
+        {
+            var row = grid.Rows[grid.Rows.Add(f.Name, f.Display)];
+            if (f.State != FeatureState.Enabled)
+                row.Cells[1].Style.ForeColor = Theme.SubtleText;
+        }
     }
 
     private static void AddRuntimeRows(DataGridView grid, string name, IReadOnlyList<RuntimeInstallation> installs)
