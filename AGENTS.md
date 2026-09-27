@@ -22,7 +22,8 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── IO/DuplicateFinder.cs # duplicate files: group by size, then prefix hash, then SHA-256
 ├── IO/RecycleBin.cs      # send to Recycle Bin via shell, asks before permanent delete
 ├── Net/NetworkInfo.cs    # network adapters + ping
-└── SystemInfo/StartupPrograms.cs # registry Run/RunOnce entries (read-only)
+├── SystemInfo/StartupPrograms.cs # registry Run/RunOnce entries (read-only)
+└── SystemInfo/JavaDetector.cs # installed Java: JAVA_HOME, vendor registry keys, PATH; reads the "release" file
 WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── ChatSession.cs        # agent creation, session, streaming, reasoning-effort retry
 ├── PcTools.cs            # read-only PC inspection tools exposed to the agent

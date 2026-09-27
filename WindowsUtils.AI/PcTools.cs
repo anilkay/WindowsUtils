@@ -54,6 +54,24 @@ public static class PcTools
         }
     }
 
+    [Description("Gets the installed Java version(s) (JDK/JRE): version, vendor, install folder and where it was found "
+        + "(JAVA_HOME, registry or PATH). The first one listed is the default. Read-only.")]
+    public static string GetJavaVersion()
+    {
+        try
+        {
+            var installs = JavaDetector.Find();
+            if (installs.Count == 0)
+                return "Java is not installed (nothing found via JAVA_HOME, the registry or PATH).";
+            return string.Join(Environment.NewLine, installs.Take(20).Select((j, i) =>
+                $"{(i == 0 ? "Default: " : "")}{JavaDetector.Format(j)} at {j.Home} [{j.Source}]"));
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
     [Description("Lists the top running processes by memory usage.")]
     public static string GetProcesses(
         [Description("Maximum number of processes to return (1-30).")] int maxProcesses = 10)

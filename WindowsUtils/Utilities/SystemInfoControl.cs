@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
+using WindowsUtils.Core.SystemInfo;
 
 namespace WindowsUtils.Utilities;
 
@@ -14,8 +15,26 @@ public class SystemInfoControl : UtilityControl
 
         foreach (var (name, value) in Collect())
             grid.Rows.Add(name, value);
+        AddJavaRows(grid);
 
         Controls.Add(grid);
+    }
+
+    private static void AddJavaRows(DataGridView grid)
+    {
+        var installs = JavaDetector.Find();
+        if (installs.Count == 0)
+        {
+            var row = grid.Rows[grid.Rows.Add("Java", "Not installed")];
+            row.Cells[1].Style.ForeColor = Theme.SubtleText;
+            return;
+        }
+
+        var java = installs[0];
+        grid.Rows.Add("Java", JavaDetector.Format(java));
+        grid.Rows.Add("Java Home", $"{java.Home}  ({java.Source})");
+        if (installs.Count > 1)
+            grid.Rows.Add("Other Java Installs", string.Join(", ", installs.Skip(1).Select(JavaDetector.Format)));
     }
 
     private static IEnumerable<(string Name, string Value)> Collect()
