@@ -15,6 +15,7 @@ public class SystemInfoControl : UtilityControl
 
         foreach (var (name, value) in Collect())
             grid.Rows.Add(name, value);
+        AddRuntimeRows(grid, ".NET Framework", NetFrameworkDetector.Find());
         AddRuntimeRows(grid, "Java", JavaDetector.Find());
         AddRuntimeRows(grid, "Python", PythonDetector.Find());
         AddRuntimeRows(grid, "Node.js", NodeDetector.Find());
