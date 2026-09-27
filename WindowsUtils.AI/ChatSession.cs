@@ -20,12 +20,31 @@ public enum ReasoningEffort
     High,
 }
 
+/// <param name="ResponseTimeout">How long the endpoint may send nothing before a model call
+/// fails; null uses <see cref="ChatSession.DefaultResponseTimeout"/>.</param>
 public sealed record ChatAgentOptions(
     string Endpoint,
     string Model,
     string ApiKey,
     ReasoningEffort Reasoning = ReasoningEffort.Default,
-    string? Instructions = null);
+    string? Instructions = null,
+    TimeSpan? ResponseTimeout = null);
+
+/// <summary>What the agent is doing while a reply streams.</summary>
+public enum ChatActivity
+{
+    /// <summary>Waiting for the endpoint to answer (request sent, nothing received yet).</summary>
+    Waiting,
+    /// <summary>The model is streaming reasoning (reasoning_content) before its answer.</summary>
+    Thinking,
+    /// <summary>The model asked for a tool; it is running on this PC.</summary>
+    RunningTool,
+    /// <summary>The model is streaming answer text.</summary>
+    Writing,
+}
+
+/// <summary>One streamed item: the current activity, plus answer text to append when <see cref="Text"/> is set.</summary>
+public readonly record struct ChatStreamUpdate(ChatActivity Activity, string? Text = null, string? ToolName = null);
 
 /// <summary>
 /// Owns the <see cref="AIAgent"/> and its conversation session.
@@ -37,6 +56,11 @@ public sealed class ChatSession
         "You are a helpful Windows PC assistant running inside the WindowsUtils app. " +
         "Use the provided tools whenever the user asks about this PC (system, processes, drives, files). " +
         "All tools are read-only; never claim to change anything. Keep answers concise.";
+
+    /// <summary>Default for <see cref="ChatAgentOptions.ResponseTimeout"/>. Reasoning models stream
+    /// their thinking, which counts as data, so only a silent endpoint hits this. Kept below the
+    /// OpenAI SDK's 100 s network timeout so this clear error fires before the SDK's own retries.</summary>
+    public static readonly TimeSpan DefaultResponseTimeout = TimeSpan.FromSeconds(90);
 
     private AIAgent _agent;
     private AgentSession? _session;
@@ -97,18 +121,23 @@ public sealed class ChatSession
             "windows-utils-assistant",
             "Windows PC assistant",
             tools,
-            BuildClientFactory(options.Reasoning),
+            BuildClientFactory(options),
             null,
             null);
     }
 
-    private static Func<IChatClient, IChatClient>? BuildClientFactory(ReasoningEffort reasoning)
+    // Wraps each model call made by the agent (including the calls inside its tool loop).
+    private static Func<IChatClient, IChatClient> BuildClientFactory(ChatAgentOptions options)
     {
-        var level = ToChatReasoningEffortLevel(reasoning);
-        if (level is null)
-            return null;
-        var effort = level.Value;
-        return inner => new ReasoningEffortChatClient(inner, effort);
+        var timeout = options.ResponseTimeout ?? DefaultResponseTimeout;
+        var level = ToChatReasoningEffortLevel(options.Reasoning);
+        return inner =>
+        {
+            IChatClient client = new ResponseTimeoutChatClient(inner, timeout);
+            if (level is { } effort)
+                client = new ReasoningEffortChatClient(client, effort);
+            return client;
+        };
     }
 
     // NOTE: do not use a switch expression with a `_ => null` arm here. Roslyn compiles
@@ -147,15 +176,34 @@ public sealed class ChatSession
     // Note: no try/catch here (yield is not allowed in a try block with a catch
     // clause). Callers must call Reset() after a failed turn: a failed turn can
     // leave the session in an unusable state (e.g. a 400 mid-run).
-    public async IAsyncEnumerable<string> StreamResponseAsync(
+    // A TimeoutException (silent endpoint) leaves the session intact: the failed turn is
+    // not added to the history, so the conversation can simply continue.
+    public async IAsyncEnumerable<ChatStreamUpdate> StreamResponseAsync(
         string prompt,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var session = _session ??= await _agent.CreateSessionAsync(cancellationToken);
         await foreach (var update in _agent.RunStreamingAsync(prompt, session, cancellationToken: cancellationToken))
         {
-            if (!string.IsNullOrEmpty(update.Text))
-                yield return update.Text;
+            foreach (var content in update.Contents)
+            {
+                switch (content)
+                {
+                    case TextContent { Text.Length: > 0 } text:
+                        yield return new(ChatActivity.Writing, text.Text);
+                        break;
+                    case TextReasoningContent:
+                        yield return new(ChatActivity.Thinking);
+                        break;
+                    case FunctionCallContent call:
+                        yield return new(ChatActivity.RunningTool, ToolName: call.Name);
+                        break;
+                    case FunctionResultContent:
+                        // The tool finished; its result goes back to the model.
+                        yield return new(ChatActivity.Waiting);
+                        break;
+                }
+            }
         }
     }
 

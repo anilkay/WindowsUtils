@@ -35,7 +35,8 @@ WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── PcTools.cs            # read-only PC inspection tools exposed to the agent
 ├── ChatSettingsStore.cs  # endpoint/model persistence (%AppData%\WindowsUtils\chat.json)
 ├── CredentialStore.cs    # API key in Windows Credential Manager (advapi32)
-└── ReasoningEffortChatClient.cs # injects reasoning_effort into requests
+├── ReasoningEffortChatClient.cs # injects reasoning_effort into requests
+└── ResponseTimeoutChatClient.cs # fails a model call with TimeoutException when the endpoint goes silent
 WindowsUtils/            # WinForms app (net10.0-windows), references Core
 ├── Program.cs            # entry point, launches MainForm
 ├── MainForm.cs           # shell: owner-drawn sidebar nav + page header + content panel
