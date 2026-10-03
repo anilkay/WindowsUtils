@@ -4,6 +4,12 @@ A Windows Forms app (.NET 10) that bundles small, handy Windows utilities in a s
 
 The UI follows the Windows 11 look: it switches between light and dark with your Windows setting and uses your Windows accent color.
 
+## Download
+
+Get `WindowsUtils-<version>-win-x64.zip` from the [latest release](https://github.com/anilkay/WindowsUtils/releases/latest) (currently [v0.0.1](https://github.com/anilkay/WindowsUtils/releases/tag/v0.0.1)), unzip it and run `WindowsUtils.exe`. It is a self-contained single file, so no .NET install is needed.
+
+New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut one, run `.\release.ps1 0.0.2` on an up-to-date, clean `main` (add `-WhatIf` to only run the checks).
+
 ## Screenshots
 
 | Light | Dark |
@@ -29,7 +35,7 @@ The UI follows the Windows 11 look: it switches between light and dark with your
 ## Requirements
 
 - Windows
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) to build from source
+- [.NET 10 SDK](https://dotnet.microsoft.com/download) to build from source (not needed for the [release download](#download))
 
 ## Build & run
 

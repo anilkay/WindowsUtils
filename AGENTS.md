@@ -36,7 +36,8 @@ WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── PcTools.cs            # read-only PC inspection tools exposed to the agent
 ├── ChatSettingsStore.cs  # endpoint/model persistence (%AppData%\WindowsUtils\chat.json)
 ├── CredentialStore.cs    # API key in Windows Credential Manager (advapi32)
-└── ReasoningEffortChatClient.cs # injects reasoning_effort into requests
+├── ReasoningEffortChatClient.cs # injects reasoning_effort into requests
+└── ResponseTimeoutChatClient.cs # fails a model call with TimeoutException when the endpoint goes silent
 WindowsUtils/            # WinForms app (net10.0-windows), references Core
 ├── Program.cs            # entry point, launches MainForm
 ├── MainForm.cs           # shell: owner-drawn sidebar nav + page header + content panel
@@ -57,12 +58,13 @@ Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, 
 - **Reusable logic goes to Core**: UI-agnostic code (hashing, formatting, scanning) lives in `WindowsUtils.Core` (`net10.0`, no WinForms references) so console apps/services can reuse it. The WinForms project holds UI only.
 - **AI logic goes to WindowsUtils.AI**: agent setup, session/streaming, tools, settings and credential storage live there. `ChatControl` is a thin UI shell that only calls `ChatSession` / `ChatSettingsStore` / `CredentialStore`.
 - **Every screen is also an AI tool**: whatever a utility screen can show must also be available to AI Chat as a tool in `PcTools` (registered in `ChatSession.BuildAgent`). Tools call the same Core logic as the screen, are read-only (no delete, write or registry changes; destructive actions stay in the UI behind a confirmation), pass model-chosen paths through `ResolveDirectory` / `ToLocalPath`, and cap their output. Long scans take a `CancellationToken` parameter (AIFunctionFactory binds it and hides it from the model).
+- **Tools that return private data need the user's permission**: tools that return file contents or environment variable values (`ReadTextFile`, `GetEnvironmentVariable`) are registered as `new ApprovalRequiredAIFunction(...)`. `ChatSession.StreamResponseAsync` stops before running them and asks its `approveToolCall` callback (`ChatControl` shows a Yes/No box, default No, naming the file or variable and the endpoint host); without a callback they are declined. Listing tools (names, sizes) run without asking.
 
 ## Adding a new utility
 
 1. Create `Utilities/MyToolControl.cs : UtilityControl`, build UI in the constructor.
 2. Add one line to `MainForm.Utilities`: `("My Tool", "\uE90F", "One-line description.", () => new MyToolControl()),`
-3. Expose the same capability to AI Chat: add a read-only `[Description]` method to `PcTools` and register it in `ChatSession.BuildAgent`.
+3. Expose the same capability to AI Chat: add a read-only `[Description]` method to `PcTools` and register it in `ChatSession.BuildAgent` (wrapped in `ApprovalRequiredAIFunction` if it returns file contents, secrets or similar private data).
 
 ## Gotchas (learned the hard way)
 
