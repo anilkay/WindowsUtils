@@ -23,8 +23,10 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── IO/RecycleBin.cs      # send to Recycle Bin via shell, asks before permanent delete
 ├── Net/NetworkInfo.cs    # network adapters + ping
 ├── Net/TcpTraceroute.cs  # TCP traceroute: TTL-stepped SYN probes + ICMP hop mapping (needs admin)
+├── Net/FirewallRules.cs  # enabled inbound allow rules with TCP/UDP ports via HNetCfg.FwPolicy2 COM (read-only)
 ├── SystemInfo/StartupPrograms.cs # registry Run/RunOnce entries (read-only)
 ├── SystemInfo/LocalUsers.cs # local user accounts via netapi32 NetUserEnum (read-only)
+├── SystemInfo/UserManagement.cs # create/delete local users via netapi32 (needs admin); UI-only, not exposed to AI Chat
 ├── SystemInfo/RuntimeInstallation.cs # shared record + probe helpers (PATH search, link resolution, version sort) for the runtime detectors
 ├── SystemInfo/JavaDetector.cs # installed Java: JAVA_HOME, vendor registry keys, PATH; reads the "release" file
 ├── SystemInfo/PythonDetector.cs # installed Python: PATH (skips WindowsApps aliases), PEP 514 registry keys, Python install manager (%LOCALAPPDATA%\Python), pyenv-win
@@ -47,7 +49,7 @@ WindowsUtils/            # WinForms app (net10.0-windows), references Core
     └── *Control.cs       # one self-contained UserControl per utility
 ```
 
-Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, File Hash Calculator, Environment Variables, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
+Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, Firewall Ports, File Hash Calculator, Environment Variables, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
 
 ## Conventions
 

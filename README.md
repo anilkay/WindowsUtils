@@ -25,9 +25,11 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 | **Disk Info** | All drives with total/free space; highlights drives under 10% free |
 | **Network Info** | Adapters, IPs, MAC addresses + built-in ping tool |
 | **TCP Traceroute** | Trace the network path to a host over TCP, hop by hop (needs Administrator) |
+| **Firewall Ports** | TCP/UDP ports opened by enabled inbound Windows Firewall rules |
 | **File Hash Calculator** | MD5 / SHA-1 / SHA-256 / SHA-512 with hash verification |
 | **Environment Variables** | Browse User / Machine / Process variables |
 | **Startup Programs** | Programs registered to start with Windows (registry Run keys) |
+| **Local Users** | Local user accounts and their status; add or delete accounts (needs Administrator) |
 | **Folder Size Analyzer** | Sizes of everything inside a folder, sorted largest first |
 | **Largest Files** | Scans drives/folders for the top 100 largest files; open in Explorer or delete to Recycle Bin |
 | **AI Chat** | Chat with an AI agent that can inspect this PC via read-only tools (needs an API key) |

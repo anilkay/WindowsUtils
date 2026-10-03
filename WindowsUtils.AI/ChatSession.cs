@@ -120,8 +120,6 @@ public sealed class ChatSession
             AIFunctionFactory.Create(new Func<string>(PcTools.GetFirewallPorts)),
             AIFunctionFactory.Create(new Func<string, int, CancellationToken, Task<string>>(PcTools.PingHost)),
             AIFunctionFactory.Create(new Func<string, int, int, CancellationToken, Task<string>>(PcTools.TraceTcpRoute)),
-            AIFunctionFactory.Create(new Func<string, int, string>(PcTools.ReadTextFile)),
-            AIFunctionFactory.Create(new Func<string, string>(PcTools.GetEnvironmentVariable)),
             // These return file contents and environment variable values (which can hold secrets),
             // so each call waits for the user's permission; see StreamResponseAsync.
             new ApprovalRequiredAIFunction(AIFunctionFactory.Create(new Func<string, int, string>(PcTools.ReadTextFile))),
