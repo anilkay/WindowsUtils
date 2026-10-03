@@ -405,6 +405,57 @@ public static class PcTools
         }
     }
 
+    [Description("Lists TCP/UDP ports opened by enabled inbound Windows Firewall allow rules. Read-only.")]
+    public static string GetFirewallPorts()
+    {
+        if (!OperatingSystem.IsWindows())
+            return "Error: Windows Firewall is only available on Windows.";
+        try
+        {
+            var rules = FirewallRules.GetInboundAllowRules();
+            if (rules.Count == 0)
+                return "(no enabled inbound allow rules with TCP/UDP ports)";
+            var lines = rules.Take(40).Select(r => $"{r.Protocol,-4} {r.LocalPorts,-24} {r.Name}");
+            var more = rules.Count > 40 ? $"{Environment.NewLine}... {rules.Count - 40} more" : "";
+            return string.Join(Environment.NewLine, lines) + more;
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.GetBaseException().Message}";
+        }
+    }
+
+    [Description("Traces the network path to a host over TCP, hop by hop with latency. Needs Administrator.")]
+    public static async Task<string> TraceTcpRoute(
+        [Description("Host name or IP address, e.g. example.com.")] string host,
+        [Description("TCP port to probe (1-65535).")] int port = 80,
+        [Description("Maximum hops to trace (1-16).")] int maxHops = 10,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(host) || host.Trim().Length > 253)
+                return "Enter a host name or IP address.";
+            var hops = await TcpTraceroute.TraceAsync(host.Trim(), Math.Clamp(port, 1, 65535),
+                Math.Clamp(maxHops, 1, 16), 2000, resolveHostNames: false, progress: null,
+                cancellationToken: cancellationToken);
+            if (hops.Count == 0)
+                return "(no hops)";
+            return string.Join(Environment.NewLine, hops.Select(h =>
+                $"{h.Ttl,2}  {(h.Address ?? "*"),-15} {FormatRtt(h.Rtt1Ms),-8} {FormatRtt(h.Rtt2Ms),-8} {FormatRtt(h.Rtt3Ms),-8} {h.Note ?? ""}".TrimEnd()));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return $"Traceroute failed: {ex.GetBaseException().Message}";
+        }
+    }
+
+    private static string FormatRtt(long? ms) => ms.HasValue ? $"{ms.Value} ms" : "*";
+
     internal static string? ResolveDirectory(string directory)
     {
         if (string.IsNullOrWhiteSpace(directory))

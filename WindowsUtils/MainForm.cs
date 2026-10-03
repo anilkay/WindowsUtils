@@ -18,6 +18,8 @@ public class MainForm : Form
         ("System Information", "\uE770", "Operating system, hardware and memory at a glance.", () => new SystemInfoControl()),
         ("Disk Info", "\uEDA2", "Capacity and free space for every drive.", () => new DiskInfoControl()),
         ("Network Info", "\uE968", "Network adapters, addresses and a quick ping.", () => new NetworkInfoControl()),
+        ("TCP Traceroute", "\uE774", "Trace the network path to a host over TCP.", () => new TcpTracerouteControl()),
+        ("Firewall Ports", "\uE72E", "TCP/UDP ports opened by enabled inbound firewall rules.", () => new FirewallPortsControl()),
         ("File Hash Calculator", "\uE928", "Compute and verify MD5, SHA-1, SHA-256 and SHA-512 hashes.", () => new FileHashControl()),
         ("Environment Variables", "\uE943", "Browse user, machine and process variables.", () => new EnvironmentVariablesControl()),
         ("Startup Programs", "\uE7E8", "Programs registered to start with Windows.", () => new StartupProgramsControl()),

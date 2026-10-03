@@ -18,6 +18,7 @@ The UI follows the Windows 11 look: it switches between light and dark with your
 | **System Information** | OS, CPU, RAM usage, uptime, screen resolution |
 | **Disk Info** | All drives with total/free space; highlights drives under 10% free |
 | **Network Info** | Adapters, IPs, MAC addresses + built-in ping tool |
+| **TCP Traceroute** | Trace the network path to a host over TCP, hop by hop (needs Administrator) |
 | **File Hash Calculator** | MD5 / SHA-1 / SHA-256 / SHA-512 with hash verification |
 | **Environment Variables** | Browse User / Machine / Process variables |
 | **Startup Programs** | Programs registered to start with Windows (registry Run keys) |
