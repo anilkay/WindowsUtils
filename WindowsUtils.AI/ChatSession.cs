@@ -98,35 +98,11 @@ public sealed class ChatSession
     private static AIAgent BuildAgent(ChatAgentOptions options, Uri endpointUri)
     {
         var chatClient = PcTools.CreateChatClient(options.Model, options.ApiKey, endpointUri);
-        AITool[] tools =
-        [
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetCurrentTime)),
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetSystemInfo)),
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetNetFrameworkVersion)),
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetJavaVersion)),
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetPythonVersion)),
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetNodeVersion)),
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetWindowsFeatures)),
-            AIFunctionFactory.Create(new Func<int, string>(PcTools.GetProcesses)),
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetDrives)),
-            AIFunctionFactory.Create(new Func<string, string, int, string>(PcTools.ListFiles)),
-            AIFunctionFactory.Create(new Func<string, string, int, string>(PcTools.ListFolders)),
-            AIFunctionFactory.Create(new Func<string, int, bool, string>(PcTools.GetLargestFiles)),
-            AIFunctionFactory.Create(new Func<string, int, int, CancellationToken, string>(PcTools.FindDuplicateFiles)),
-            AIFunctionFactory.Create(new Func<string, int, CancellationToken, string>(PcTools.GetFolderSizes)),
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetStartupPrograms)),
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetLocalUsers)),
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetNetworkAdapters)),
-            AIFunctionFactory.Create(new Func<string>(PcTools.GetFirewallPorts)),
-            AIFunctionFactory.Create(new Func<string, int, CancellationToken, Task<string>>(PcTools.PingHost)),
-            AIFunctionFactory.Create(new Func<string, int, int, CancellationToken, Task<string>>(PcTools.TraceTcpRoute)),
-            // These return file contents and environment variable values (which can hold secrets),
-            // so each call waits for the user's permission; see StreamResponseAsync.
-            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(new Func<string, int, string>(PcTools.ReadTextFile))),
-            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(new Func<string, string>(PcTools.GetEnvironmentVariable))),
-            AIFunctionFactory.Create(new Func<string, string, string>(PcTools.ComputeFileHash)),
-            AIFunctionFactory.Create(new Func<string, string, string>(PcTools.VerifyFileHash)),
-        ];
+        // Tools that read file contents or environment variable values wait for the user's
+        // permission; see StreamResponseAsync. The tool list itself comes from PcTools so the
+        // MCP server (McpServerHost) exposes exactly the same capabilities.
+        AITool[] tools = [.. PcTools.CreateTools().Select(t =>
+            t.NeedsApproval ? (AITool)new ApprovalRequiredAIFunction(t.Function) : t.Function)];
         return chatClient.AsAIAgent(
             options.Instructions ?? DefaultInstructions,
             "windows-utils-assistant",
@@ -244,10 +220,15 @@ public sealed class ChatSession
         }
     }
 
-    // The question shown before a tool call runs. The path is shown the way ReadTextFile resolves it.
-    private ToolApprovalRequest DescribeToolCall(ToolCallContent toolCall)
+    // The question shown before a tool call runs, with the AI endpoint as the destination.
+    private ToolApprovalRequest DescribeToolCall(ToolCallContent toolCall) =>
+        DescribeToolCall(toolCall,
+            Uri.TryCreate(_options.Endpoint, UriKind.Absolute, out var uri) ? uri.Authority : _options.Endpoint);
+
+    // The path is shown the way ReadTextFile resolves it. destination is where the result
+    // goes (the AI endpoint authority, or "the connected MCP client" for the MCP server).
+    internal static ToolApprovalRequest DescribeToolCall(ToolCallContent toolCall, string destination)
     {
-        var destination = Uri.TryCreate(_options.Endpoint, UriKind.Absolute, out var uri) ? uri.Authority : _options.Endpoint;
         if (toolCall is not FunctionCallContent call)
             return new(toolCall.GetType().Name, $"The AI model wants to run a tool. Its result will be sent to {destination}.\n\nAllow?");
 

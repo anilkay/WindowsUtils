@@ -19,6 +19,7 @@ public class ChatControl : UtilityControl
     private readonly Button _clearButton = new() { Text = "Clear", AutoSize = true };
     private readonly Button _exportButton = new() { Text = "Export...", AutoSize = true };
     private readonly Button _forgetButton = new() { Text = "Forget", AutoSize = true };
+    private readonly Button _mcpButton = new() { Text = "Start MCP server", AutoSize = true };
     private readonly CheckBox _rememberCheck = new() { Text = "Remember", Checked = true, AutoSize = true };
     private readonly ChatTranscriptView _transcript = new();
     private readonly TextBox _inputBox = new();
@@ -33,6 +34,8 @@ public class ChatControl : UtilityControl
     private CancellationTokenSource? _cts;
     private CancellationTokenSource? _modelsCts;
     private string? _modelsLoadedFor;
+    private McpServerHost? _mcpHost;
+    private bool _mcpHelpShown;
 
     public ChatControl()
     {
@@ -54,6 +57,7 @@ public class ChatControl : UtilityControl
         foreach (var button in new[] { _forgetButton, _newChatButton, _clearButton, _exportButton })
             button.Margin = new Padding(4, 3, 4, 3);
         _loadModelsButton.Margin = new Padding(4, 3, 12, 3);
+        _mcpButton.Margin = new Padding(4, 3, 4, 3);
         _rememberCheck.Margin = new Padding(4, 8, 4, 4);
 
         settingsPanel.Controls.Add(SettingLabel("Endpoint:"));
@@ -70,6 +74,7 @@ public class ChatControl : UtilityControl
         settingsPanel.Controls.Add(_reasoningBox);
         settingsPanel.Controls.Add(_rememberCheck);
         settingsPanel.Controls.Add(_forgetButton);
+        settingsPanel.Controls.Add(_mcpButton);
 
         _transcript.Dock = DockStyle.Fill;
         // Written once the handle exists, so the text picks up the themed background color.
@@ -100,6 +105,7 @@ public class ChatControl : UtilityControl
         _exportButton.Click += (_, _) => ExportChat();
         _forgetButton.Click += (_, _) => ForgetSettings();
         _loadModelsButton.Click += async (_, _) => await LoadModelsAsync();
+        _mcpButton.Click += async (_, _) => await ToggleMcpServerAsync();
         // Opening the list fetches it once per endpoint/key; the button forces a refresh.
         _modelBox.DropDown += async (_, _) =>
         {
@@ -142,7 +148,13 @@ public class ChatControl : UtilityControl
         Controls.Add(settingsPanel);
 
         _activityTimer.Tick += (_, _) => ShowActivity();
-        Disposed += (_, _) => _activityTimer.Dispose();
+        Disposed += (_, _) =>
+        {
+            _activityTimer.Dispose();
+            var host = _mcpHost;
+            _mcpHost = null;
+            _ = host?.StopAsync();
+        };
 
         LoadPersistedSettings();
     }
@@ -289,6 +301,80 @@ public class ChatControl : UtilityControl
         _statusLabel.Text = "Saved settings forgotten.";
     }
 
+    /// <summary>Starts or stops the local MCP server that exposes the agent and the read-only tools
+    /// to other apps on this PC. Uses the settings currently on screen.</summary>
+    private async Task ToggleMcpServerAsync()
+    {
+        if (_mcpHost is not null)
+        {
+            var host = _mcpHost;
+            _mcpHost = null;
+            _mcpButton.Enabled = false;
+            try
+            {
+                await host.StopAsync();
+                _transcript.AddNote("MCP server stopped.");
+                _statusLabel.Text = "MCP server stopped.";
+            }
+            catch (Exception ex)
+            {
+                _statusLabel.Text = $"Could not stop the MCP server: {ex.Message}";
+            }
+            finally
+            {
+                _mcpButton.Enabled = true;
+                _mcpButton.Text = "Start MCP server";
+            }
+            return;
+        }
+
+        McpServerHostOptions options;
+        try
+        {
+            options = new McpServerHostOptions(BuildAgentOptions(), ApproveMcpToolCall);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "AI Chat", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        if (_rememberCheck.Checked)
+            SaveSettings();
+
+        _mcpButton.Enabled = false;
+        _statusLabel.Text = "Starting MCP server...";
+        try
+        {
+            _mcpHost = await McpServerHost.StartAsync(options);
+            _mcpButton.Text = "Stop MCP server";
+            _transcript.AddNote($"MCP server running at {_mcpHost.Url} — add this URL to an MCP client "
+                + "(e.g. a VS Code mcp.json entry). It exposes the read-only tools and the AI agent; "
+                + "it only listens on this PC.");
+            _statusLabel.Text = $"MCP server: {_mcpHost.Url}";
+            if (!_mcpHelpShown)
+            {
+                _mcpHelpShown = true;
+                MessageBox.Show(this,
+                    $"MCP server started.\n\nURL: {_mcpHost.Url}\n\n"
+                    + "Add this URL to any MCP client on this PC (VS Code mcp.json, Claude Desktop, another agent). "
+                    + "It exposes the read-only PC tools and this AI agent as ask_windows_utils_agent. "
+                    + "The server only accepts connections from this PC, and stops when the button is clicked again.",
+                    "AI Chat", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = "Could not start the MCP server.";
+            MessageBox.Show($"Could not start the MCP server: {ex.Message}", "AI Chat",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _mcpButton.Enabled = true;
+        }
+    }
+
     private void ExportChat()
     {
         if (!_transcript.HasMessages)
@@ -324,7 +410,8 @@ public class ChatControl : UtilityControl
             ? effort
             : ReasoningEffort.Default;
 
-    private ChatSession EnsureSession()
+    /// <summary>The settings as typed on screen, validated; throws with a message to show when incomplete.</summary>
+    private ChatAgentOptions BuildAgentOptions()
     {
         var endpoint = _endpointBox.Text.Trim().TrimEnd('/');
         var model = _modelBox.Text.Trim();
@@ -335,13 +422,17 @@ public class ChatControl : UtilityControl
             throw new InvalidOperationException("Enter a model name (e.g. gpt-4o-mini).");
         if (string.IsNullOrWhiteSpace(key))
             throw new InvalidOperationException("Enter an API key.");
+        return new ChatAgentOptions(endpoint, model, key, SelectedEffort());
+    }
 
-        var effort = SelectedEffort();
-        var cacheKey = $"{endpoint}|{model}|{key}|{effort}";
+    private ChatSession EnsureSession()
+    {
+        var options = BuildAgentOptions();
+        var cacheKey = $"{options.Endpoint}|{options.Model}|{options.ApiKey}|{options.Reasoning}";
         if (_chatSession is not null && cacheKey == _sessionCacheKey)
             return _chatSession;
 
-        _chatSession = ChatSession.Create(new ChatAgentOptions(endpoint, model, key, effort));
+        _chatSession = ChatSession.Create(options);
         _sessionCacheKey = cacheKey;
         return _chatSession;
     }
@@ -456,6 +547,15 @@ public class ChatControl : UtilityControl
         var answer = MessageBox.Show(this, request.Prompt, "AI Chat",
             MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
         return Task.FromResult(answer == DialogResult.Yes);
+    }
+
+    /// <summary>Same question as <see cref="ApproveToolCall"/>, but a Kestrel thread asks it:
+    /// hop to the UI thread first. Without a window there is nobody to ask, so decline.</summary>
+    private Task<bool> ApproveMcpToolCall(ToolApprovalRequest request, CancellationToken token)
+    {
+        if (IsDisposed || !IsHandleCreated)
+            return Task.FromResult(false);
+        return InvokeRequired ? Invoke(() => ApproveToolCall(request, token)) : ApproveToolCall(request, token);
     }
 
     /// <summary>Shows what the agent is doing; the elapsed time restarts when the step changes.</summary>

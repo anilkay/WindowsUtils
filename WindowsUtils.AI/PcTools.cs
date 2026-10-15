@@ -2,6 +2,7 @@ using System.ClientModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using Microsoft.Extensions.AI;
 using OpenAI;
 using OpenAI.Chat;
 using WindowsUtils.Core;
@@ -23,6 +24,55 @@ public static class PcTools
     // used by ChatSession is defined on this type.
     internal static ChatClient CreateChatClient(string model, string apiKey, Uri endpoint) =>
         new(model, new ApiKeyCredential(apiKey), new OpenAIClientOptions { Endpoint = endpoint });
+
+    // One tool for the AI agent: the function itself, plus whether it reads private data
+    // (file contents or environment variable values) and must ask the user before each run,
+    // and whether it talks to the outside world (network/LLM) rather than this PC only.
+    internal readonly record struct PcTool(AIFunction Function, bool NeedsApproval, bool OpenWorld = false);
+
+    // AIFunctionFactory marshals results to JsonElement by default. Over MCP the SDK would then
+    // serialize that JsonElement a second time, so text arrived quoted with visible \n escapes
+    // (McpServerHost.cs). Pass the raw result through instead; every consumer gets the plain string.
+    // Use this factory for every tool exposed to the agent or over MCP.
+    internal static AIFunction CreateFunction(Delegate method, string? name = null, string? description = null) =>
+        AIFunctionFactory.Create(method, new AIFunctionFactoryOptions
+        {
+            Name = name,
+            Description = description,
+            MarshalResult = static (result, _, _) => new ValueTask<object?>(result),
+        });
+
+    /// <summary>The read-only PC inspection tools. Single source of truth: the chat agent
+    /// (<see cref="ChatSession"/>) and the MCP server (<see cref="McpServerHost"/>) both use this list.</summary>
+    internal static PcTool[] CreateTools() =>
+    [
+        new(CreateFunction(new Func<string>(GetCurrentTime)), false),
+        new(CreateFunction(new Func<string>(GetSystemInfo)), false),
+        new(CreateFunction(new Func<string>(GetNetFrameworkVersion)), false),
+        new(CreateFunction(new Func<string>(GetJavaVersion)), false),
+        new(CreateFunction(new Func<string>(GetPythonVersion)), false),
+        new(CreateFunction(new Func<string>(GetNodeVersion)), false),
+        new(CreateFunction(new Func<string>(GetWindowsFeatures)), false),
+        new(CreateFunction(new Func<int, string>(GetProcesses)), false),
+        new(CreateFunction(new Func<string>(GetDrives)), false),
+        new(CreateFunction(new Func<string, string, int, string>(ListFiles)), false),
+        new(CreateFunction(new Func<string, string, int, string>(ListFolders)), false),
+        new(CreateFunction(new Func<string, int, bool, string>(GetLargestFiles)), false),
+        new(CreateFunction(new Func<string, int, int, CancellationToken, string>(FindDuplicateFiles)), false),
+        new(CreateFunction(new Func<string, int, CancellationToken, string>(GetFolderSizes)), false),
+        new(CreateFunction(new Func<string>(GetStartupPrograms)), false),
+        new(CreateFunction(new Func<string>(GetLocalUsers)), false),
+        new(CreateFunction(new Func<string>(GetNetworkAdapters)), false),
+        new(CreateFunction(new Func<string>(GetFirewallPorts)), false),
+        new(CreateFunction(new Func<string, int, CancellationToken, Task<string>>(PingHost)), false, true),
+        new(CreateFunction(new Func<string, int, int, CancellationToken, Task<string>>(TraceTcpRoute)), false, true),
+        // These return file contents and environment variable values (which can hold secrets),
+        // so each call waits for the user's permission (chat: ApprovalRequiredAIFunction; MCP: approval gate).
+        new(CreateFunction(new Func<string, int, string>(ReadTextFile)), true),
+        new(CreateFunction(new Func<string, string>(GetEnvironmentVariable)), true),
+        new(CreateFunction(new Func<string, string, string>(ComputeFileHash)), false),
+        new(CreateFunction(new Func<string, string, string>(VerifyFileHash)), false),
+    ];
 
     [Description("Gets the current date and time on this PC.")]
     public static string GetCurrentTime()

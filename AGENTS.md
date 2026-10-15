@@ -9,7 +9,7 @@ dotnet build                        # from repo root (solution dir)
 dotnet run --project WindowsUtils   # run the app
 ```
 
-NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`). `WindowsUtils.Core` is dependency-free. The WinForms app itself has no package references.
+NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`; MCP server: `ModelContextProtocol.AspNetCore` + the `Microsoft.AspNetCore.App` framework reference). `WindowsUtils.Core` is dependency-free. The WinForms app itself has no package references.
 
 ## Structure
 
@@ -38,6 +38,7 @@ WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── PcTools.cs            # read-only PC inspection tools exposed to the agent
 ├── ChatSettingsStore.cs  # endpoint/model persistence (%AppData%\WindowsUtils\chat.json)
 ├── CredentialStore.cs    # API key in Windows Credential Manager (advapi32)
+├── McpServerHost.cs      # local MCP server (streamable HTTP, loopback): agent as tool + PcTools as MCP tools
 ├── ReasoningEffortChatClient.cs # injects reasoning_effort into requests
 └── ResponseTimeoutChatClient.cs # fails a model call with TimeoutException when the endpoint goes silent
 WindowsUtils/            # WinForms app (net10.0-windows), references Core
@@ -59,19 +60,21 @@ Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, 
 - **Docking order**: WinForms docks controls in reverse z-order. Add the `Dock=Fill` control **first**, then `Top`/`Bottom` panels, so panels dock correctly.
 - **Reusable logic goes to Core**: UI-agnostic code (hashing, formatting, scanning) lives in `WindowsUtils.Core` (`net10.0`, no WinForms references) so console apps/services can reuse it. The WinForms project holds UI only.
 - **AI logic goes to WindowsUtils.AI**: agent setup, session/streaming, tools, settings and credential storage live there. `ChatControl` is a thin UI shell that only calls `ChatSession` / `ChatSettingsStore` / `CredentialStore`.
-- **Every screen is also an AI tool**: whatever a utility screen can show must also be available to AI Chat as a tool in `PcTools` (registered in `ChatSession.BuildAgent`). Tools call the same Core logic as the screen, are read-only (no delete, write or registry changes; destructive actions stay in the UI behind a confirmation), pass model-chosen paths through `ResolveDirectory` / `ToLocalPath`, and cap their output. Long scans take a `CancellationToken` parameter (AIFunctionFactory binds it and hides it from the model).
+- **Every screen is also an AI tool**: whatever a utility screen can show must also be available to AI Chat as a tool in `PcTools` (registered in `PcTools.CreateTools()`). Tools call the same Core logic as the screen, are read-only (no delete, write or registry changes; destructive actions stay in the UI behind a confirmation), pass model-chosen paths through `ResolveDirectory` / `ToLocalPath`, and cap their output. Long scans take a `CancellationToken` parameter (AIFunctionFactory binds it and hides it from the model).
 - **Tools that return private data need the user's permission**: tools that return file contents or environment variable values (`ReadTextFile`, `GetEnvironmentVariable`) are registered as `new ApprovalRequiredAIFunction(...)`. `ChatSession.StreamResponseAsync` stops before running them and asks its `approveToolCall` callback (`ChatControl` shows a Yes/No box, default No, naming the file or variable and the endpoint host); without a callback they are declined. Listing tools (names, sizes) run without asking.
+- **MCP server**: `PcTools.CreateTools()` is the single tool list (function + `NeedsApproval`/`OpenWorld` flags) used by both the chat agent and `McpServerHost` (started/stopped by a button on the AI Chat screen). The MCP path keeps the same approval rule via a gate that asks the `approveToolCall` callback (declines without one) and exposes the agent itself as `ask_windows_utils_agent` (`ChatSession.StreamResponseAsync` with one-shot sessions). It binds loopback only (`http://localhost:5199/mcp`, next ports if busy), rejects browser requests whose `Origin` is not the server's own loopback origin (403, DNS-rebinding guard), uses the streamable HTTP transport, and needs the ASP.NET Core runtime (comes with the SDK; machines with only the Desktop Runtime can't start the app). Tools are annotated `ReadOnly` + non-`Destructive`; the network tools and the agent are `OpenWorld`.
 
 ## Adding a new utility
 
 1. Create `Utilities/MyToolControl.cs : UtilityControl`, build UI in the constructor.
 2. Add one line to `MainForm.Utilities`: `("My Tool", "\uE90F", "One-line description.", () => new MyToolControl()),`
-3. Expose the same capability to AI Chat: add a read-only `[Description]` method to `PcTools` and register it in `ChatSession.BuildAgent` (wrapped in `ApprovalRequiredAIFunction` if it returns file contents, secrets or similar private data).
+3. Expose the same capability to AI Chat: add a read-only `[Description]` method to `PcTools` and one line in `PcTools.CreateTools()` (set `NeedsApproval` if it returns file contents, secrets or similar private data). Chat and the MCP server both pick it up automatically.
 
 ## Gotchas (learned the hard way)
 
 - **DataGridView + deferred binding**: column auto-generation only happens once the control is parented to a form (gets a `BindingContext`). Since utility controls are constructed *before* being added to the content panel, never read `grid.Columns["X"]` in a constructor with auto-generated columns — it returns null (NRE). Instead set `AutoGenerateColumns = false` and add columns explicitly via `AddBoundColumn(...)` (sets `DataPropertyName`).
 - **Unbound grids** (rows added manually) throw on header-click sorting — call `MakeUnsortable(grid)` after adding columns.
+- **AIFunctionFactory marshals results to `JsonElement` by default** (Microsoft.Extensions.AI 10.x). Over MCP the SDK then serializes that JsonElement a second time, so text arrives quoted with `\n` escapes (`"line1\nline2"`) instead of plain text. Create agent/MCP functions via `PcTools.CreateFunction(...)`, which passes results through unchanged.
 - **Shared helpers**: UI grid helpers live in `UtilityControl` (`CreateGrid()`, `AddBoundColumn()`, `MakeUnsortable()`); reusable logic lives in Core (`ByteFormatter`, `FileHasher`, `FileScanner`). `UtilityControl.FormatBytes()` just delegates to Core.
 
 ## Patterns in use
