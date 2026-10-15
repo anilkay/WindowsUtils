@@ -15,6 +15,9 @@ public class MainForm : Form
     // Icon is a Segoe Fluent Icons / Segoe MDL2 Assets glyph.
     private static readonly (string Name, string Icon, string Description, Func<UserControl> Factory)[] Utilities =
     [
+        ("Folder Size Analyzer", "\uE8B7", "See what takes up space inside a folder.", () => new FolderSizeControl()),
+        ("Largest Files", "\uE8A5", "Find the biggest files on your drives.", () => new LargestFilesControl()),
+        ("Duplicate Files", "\uE8C8", "Find identical files and free up space.", () => new DuplicateFilesControl()),
         ("System Information", "\uE770", "Operating system, hardware and memory at a glance.", () => new SystemInfoControl()),
         ("Disk Info", "\uEDA2", "Capacity and free space for every drive.", () => new DiskInfoControl()),
         ("Network Info", "\uE968", "Network adapters, addresses and a quick ping.", () => new NetworkInfoControl()),
@@ -24,9 +27,6 @@ public class MainForm : Form
         ("Environment Variables", "\uE943", "Browse user, machine and process variables.", () => new EnvironmentVariablesControl()),
         ("Startup Programs", "\uE7E8", "Programs registered to start with Windows.", () => new StartupProgramsControl()),
         ("Local Users", "\uE716", "Local user accounts, their status and last logon.", () => new LocalUsersControl()),
-        ("Folder Size Analyzer", "\uE8B7", "See what takes up space inside a folder.", () => new FolderSizeControl()),
-        ("Largest Files", "\uE8A5", "Find the biggest files on your drives.", () => new LargestFilesControl()),
-        ("Duplicate Files", "\uE8C8", "Find identical files and free up space.", () => new DuplicateFilesControl()),
         ("AI Chat", "\uE8F2", "Ask an AI assistant that can inspect this PC.", () => new ChatControl()),
     ];
 
