@@ -31,6 +31,8 @@ public class ChatControl : UtilityControl
 
     private ChatSession? _chatSession;
     private string? _sessionCacheKey;
+    // The endpoint host the key in the box was loaded for; keys are stored per host.
+    private string _apiKeyHost = "";
     private CancellationTokenSource? _cts;
     private CancellationTokenSource? _modelsCts;
     private string? _modelsLoadedFor;
@@ -105,12 +107,16 @@ public class ChatControl : UtilityControl
         _forgetButton.Click += (_, _) => ForgetSettings();
         _loadModelsButton.Click += async (_, _) => await LoadModelsAsync();
         _mcpButton.Click += async (_, _) => await ToggleMcpServerAsync();
-        // Opening the list fetches it once per endpoint/key; the button forces a refresh.
+        // Opening the list fetches it once per endpoint/key, but only when a key for this
+        // endpoint is present; a new host gets its list on button click, not automatically.
         _modelBox.DropDown += async (_, _) =>
         {
-            if (_modelsLoadedFor != ModelsSourceKey())
+            if (_modelsLoadedFor != ModelsSourceKey() && _apiKeyBox.TextLength > 0)
                 await LoadModelsAsync();
         };
+        // The key follows the endpoint's host: switching hosts swaps or clears the box, so one
+        // endpoint's key can never silently be sent to another.
+        _endpointBox.TextChanged += (_, _) => OnEndpointChanged();
         bottomPanel.Controls.Add(_inputBox);
         bottomPanel.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 8 });
         bottomPanel.Controls.Add(_stopButton);
@@ -253,18 +259,42 @@ public class ChatControl : UtilityControl
                 if (!string.IsNullOrWhiteSpace(settings.ReasoningEffort) && _reasoningBox.Items.Contains(settings.ReasoningEffort))
                     _reasoningBox.SelectedItem = settings.ReasoningEffort;
             }
-            var key = CredentialStore.Load();
-            if (key is not null)
-            {
-                _apiKeyBox.Text = key;
-                _statusLabel.Text = "Loaded saved settings.";
-            }
+            // Fires only when the text differs; cover the saved-endpoint-no-change case directly.
+            OnEndpointChanged();
         }
         catch
         {
             // Corrupt settings file: ignore and start fresh.
         }
     }
+
+    /// <summary>The key in the box follows the endpoint's host: on a host change, that host's
+    /// saved key (if any) replaces the text, else the box is emptied — so a saved key for one
+    /// endpoint can never be sent to another one.</summary>
+    private void OnEndpointChanged()
+    {
+        var host = EndpointHost();
+        if (host == _apiKeyHost)
+            return;
+        _apiKeyHost = host;
+        if (host.Length == 0)
+            return;
+        var key = CredentialStore.Load(host);
+        if (key is not null)
+        {
+            if (_apiKeyBox.Text != key)
+                _apiKeyBox.Text = key;
+            _statusLabel.Text = "Loaded the saved API key for this endpoint.";
+        }
+        else if (_apiKeyBox.TextLength > 0)
+        {
+            _apiKeyBox.Clear();
+            _statusLabel.Text = "The API key box was emptied: keys are stored per endpoint host.";
+        }
+    }
+
+    private string EndpointHost() =>
+        Uri.TryCreate(_endpointBox.Text.Trim().TrimEnd('/'), UriKind.Absolute, out var uri) ? uri.Host : "";
 
     private void SaveSettings()
     {
@@ -275,8 +305,9 @@ public class ChatControl : UtilityControl
                 _modelBox.Text.Trim(),
                 _reasoningBox.SelectedItem as string));
             var key = _apiKeyBox.Text.Trim();
-            if (key.Length > 0)
-                CredentialStore.Save(key);
+            var host = EndpointHost();
+            if (key.Length > 0 && host.Length > 0)
+                CredentialStore.Save(key, host);
         }
         catch (Exception ex)
         {
@@ -293,7 +324,7 @@ public class ChatControl : UtilityControl
         catch
         {
         }
-        CredentialStore.Delete();
+        CredentialStore.Delete(EndpointHost());
         _apiKeyBox.Clear();
         _chatSession = null;
         _sessionCacheKey = null;

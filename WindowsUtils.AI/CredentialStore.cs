@@ -6,9 +6,14 @@ namespace WindowsUtils.AI;
 /// OS-encrypted per-user instead of cleartext. Windows-only at runtime.</summary>
 public static class CredentialStore
 {
-    private const string Target = "WindowsUtils_AIChat_ApiKey";
+    // The target name embeds the endpoint's host: one endpoint's key must never be loaded for
+    // (and thus sent to) a different endpoint. Hostless storage was the old, risky shape.
+    private const string TargetPrefix = "WindowsUtils_AIChat_ApiKey";
     private const int Generic = 1;
     private const int LocalMachine = 2;
+
+    private static string Target(string? host) =>
+        string.IsNullOrWhiteSpace(host) ? TargetPrefix : $"{TargetPrefix}:{host.Trim().ToLowerInvariant()}";
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct Credential
@@ -39,7 +44,43 @@ public static class CredentialStore
     [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CredDelete(string target, int type, int flags);
 
-    public static void Save(string secret)
+    /// <summary>Saves the key for an endpoint's host. Throws when the host is unknown: an
+    /// unbound key could later be sent to whatever endpoint happens to be typed next.</summary>
+    public static void Save(string secret, string host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+            throw new ArgumentException("An API key can only be saved together with the endpoint host it belongs to.", nameof(host));
+        Write(Target(host), secret);
+    }
+
+    /// <summary>Reads the key saved for this endpoint's host — never another host's. A stored-but
+    /// never-host-bound key (old shape) is migrated to this host on the first read.</summary>
+    public static string? Load(string host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+            return null;
+        var value = Read(Target(host));
+        if (value is not null)
+            return value;
+        value = Read(TargetPrefix);
+        if (value is null)
+            return null;
+        try
+        {
+            Write(Target(host), value);
+            DeleteTarget(TargetPrefix);
+        }
+        catch
+        {
+            // Best effort: if the migration fails, the legacy copy stays and is still returned.
+        }
+        return value;
+    }
+
+    /// <summary>Deletes the key saved for this endpoint's host; an unknown host clears the legacy copy.</summary>
+    public static void Delete(string host) => DeleteTarget(Target(host));
+
+    private static void Write(string target, string secret)
     {
         var bytes = System.Text.Encoding.Unicode.GetBytes(secret);
         var blob = Marshal.AllocCoTaskMem(bytes.Length);
@@ -50,7 +91,7 @@ public static class CredentialStore
             {
                 Flags = 0,
                 Type = Generic,
-                TargetName = Target,
+                TargetName = target,
                 CredentialBlobSize = bytes.Length,
                 CredentialBlob = blob,
                 Persist = LocalMachine,
@@ -65,9 +106,9 @@ public static class CredentialStore
         }
     }
 
-    public static string? Load()
+    private static string? Read(string target)
     {
-        if (!CredRead(Target, Generic, 0, out var ptr) || ptr == IntPtr.Zero)
+        if (!CredRead(target, Generic, 0, out var ptr) || ptr == IntPtr.Zero)
             return null;
         try
         {
@@ -86,8 +127,5 @@ public static class CredentialStore
         }
     }
 
-    public static void Delete()
-    {
-        CredDelete(Target, Generic, 0);
-    }
+    private static void DeleteTarget(string target) => CredDelete(target, Generic, 0);
 }
