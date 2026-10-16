@@ -381,12 +381,7 @@ public class ChatControl : UtilityControl
             _transcript.AddNote($"MCP server running at {_mcpHost.Url} — it exposes the read-only tools and "
                 + "the AI agent; the bearer token was shown in a dialog and is new on every start.");
             _statusLabel.Text = $"MCP server: {_mcpHost.Url}";
-            MessageBox.Show(this,
-                $"MCP server started.\n\n{_mcpHost.ClientConfigJson}\n\n"
-                + "Add this entry to the mcp.json of an MCP client on this PC (e.g. VS Code). The token is new "
-                + "every time the server starts, so update the client after restarting it. The server only "
-                + "accepts connections from this PC and stops when the button is clicked again.",
-                "AI Chat", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            new McpServerDialog(_mcpHost.ClientConfigJson).ShowDialog(this);
         }
         catch (Exception ex)
         {
@@ -605,5 +600,112 @@ public class ChatControl : UtilityControl
     {
         var seconds = (int)_activityWatch.Elapsed.TotalSeconds;
         _statusLabel.Text = seconds > 0 ? $"{_activityText} ({seconds} s)" : _activityText;
+    }
+}
+
+/// <summary>Shown when the MCP server starts: the ready-to-paste client configuration in a
+/// selectable, monospaced text box with a copy button — a MessageBox wraps the text and copies
+/// it with hard line breaks, so it cannot be pasted cleanly.</summary>
+internal sealed class McpServerDialog : Form
+{
+    private readonly string _snippet;
+    private readonly TextBox _configBox = new()
+    {
+        Multiline = true,
+        ReadOnly = true,
+        WordWrap = false,
+        ScrollBars = ScrollBars.Both,
+        BackColor = Theme.Surface,
+        ForeColor = Theme.Text,
+        BorderStyle = BorderStyle.FixedSingle,
+        Dock = DockStyle.Fill,
+        Font = Theme.MonoFont,
+    };
+    private readonly Button _copyButton = new() { Text = "Copy config", AutoSize = true };
+    private readonly Button _closeButton = new() { Text = "Close", AutoSize = true, DialogResult = DialogResult.Cancel };
+    private readonly Label _copiedLabel = new()
+    {
+        Dock = DockStyle.Fill,
+        TextAlign = ContentAlignment.MiddleLeft,
+        ForeColor = Theme.SubtleText,
+        AutoEllipsis = true,
+    };
+
+    public McpServerDialog(string snippet)
+    {
+        _snippet = snippet;
+        _configBox.Text = snippet;
+        Text = "MCP Server";
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        MaximizeBox = false;
+        MinimizeBox = false;
+        ShowInTaskbar = false;
+        StartPosition = FormStartPosition.CenterParent;
+        ClientSize = new Size(540, 400);
+        Font = Theme.BodyFont;
+        BackColor = Theme.Background;
+        ForeColor = Theme.Text;
+        HandleCreated += (_, _) => Theme.ApplyTitleBar(this);
+
+        var header = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(14, 12, 14, 10),
+        };
+        header.Controls.Add(new Label { Text = "MCP server started.", Font = Theme.SemiboldFont, AutoSize = true });
+        header.Controls.Add(new Label
+        {
+            Text = "Add this entry to the mcp.json of an MCP client on this PC (e.g. VS Code). The token "
+                + "is new every time the server starts, so update the client after restarting it. The server "
+                + "only accepts connections from this PC and stops when the button is clicked again.",
+            AutoSize = true,
+            MaximumSize = new Size(508, 0),
+            ForeColor = Theme.SubtleText,
+        });
+
+        // Docking order: the Fill control first, then Top/Bottom panels.
+        var bottom = new Panel { Dock = DockStyle.Bottom, Height = 56, Padding = new Padding(0, 6, 12, 12) };
+        var buttons = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Right,
+            FlowDirection = FlowDirection.RightToLeft,
+            WrapContents = false,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+        };
+        _copyButton.Margin = new Padding(4, 3, 4, 3);
+        _closeButton.Margin = new Padding(4, 3, 4, 3);
+        buttons.Controls.Add(_copyButton);
+        buttons.Controls.Add(_closeButton);
+        bottom.Controls.Add(_copiedLabel);
+        bottom.Controls.Add(buttons);
+
+        Controls.Add(_configBox);
+        Controls.Add(bottom);
+        Controls.Add(header);
+
+        AcceptButton = _copyButton;
+        CancelButton = _closeButton;
+        _copyButton.Click += (_, _) => CopyConfig();
+        Theme.Apply(this);
+        _copyButton.AsAccent();
+    }
+
+    private void CopyConfig()
+    {
+        try
+        {
+            Clipboard.SetText(_snippet);
+            _copiedLabel.Text = "Copied to the clipboard.";
+        }
+        catch (Exception ex)
+        {
+            // Someone else holds the clipboard open; Ctrl+C in the box still works.
+            _copiedLabel.Text = $"Could not copy ({ex.Message}); select the text and press Ctrl+C instead.";
+        }
     }
 }
