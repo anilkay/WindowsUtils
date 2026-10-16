@@ -5,6 +5,8 @@ using System.Runtime.Versioning;
 namespace WindowsUtils.Core.SystemInfo;
 
 /// <summary>Options for creating a local user account.</summary>
+/// <remarks><see cref="ToString"/> hides the <see cref="Password"/>: record output easily ends up
+/// in a log or exception message, and one stray log line would leak the secret in cleartext.</remarks>
 public sealed record NewLocalUser(
     string Name,
     string Password,
@@ -12,7 +14,13 @@ public sealed record NewLocalUser(
     string Description,
     bool PasswordNeverExpires,
     bool DisablePasswordChange,
-    bool IsAdmin);
+    bool IsAdmin)
+{
+    public sealed override string ToString() =>
+        $"{nameof(Name)}: {Name}, {nameof(FullName)}: {FullName}, {nameof(Description)}: {Description}, "
+        + $"{nameof(PasswordNeverExpires)}: {PasswordNeverExpires}, {nameof(DisablePasswordChange)}: {DisablePasswordChange}, "
+        + $"{nameof(IsAdmin)}: {IsAdmin}, {nameof(Password)}: ***";
+}
 
 /// <summary>Result of creating a local user: success, or the exact Windows error text.</summary>
 public sealed record CreateResult(bool Success, string? Error);

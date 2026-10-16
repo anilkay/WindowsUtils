@@ -149,7 +149,9 @@ public class AddUserWizardForm : Form
                 var result = t.IsFaulted ? new CreateResult(false, t.Exception?.GetBaseException().Message) : t.Result;
                 if (result.Success)
                 {
-                    Result = user;
+                    // The account exists; only its name is read by the caller, so the password
+                    // does not need to live on in the dialog's result.
+                    Result = user with { Password = "" };
                     WasCreated = true;
                     DialogResult = DialogResult.OK;
                     Close();
