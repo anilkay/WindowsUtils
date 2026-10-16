@@ -64,10 +64,13 @@ public static class PcTools
         new(CreateFunction(new Func<string>(GetLocalUsers)), false),
         new(CreateFunction(new Func<string>(GetNetworkAdapters)), false),
         new(CreateFunction(new Func<string>(GetFirewallPorts)), false),
-        new(CreateFunction(new Func<string, int, CancellationToken, Task<string>>(PingHost)), false, true),
-        new(CreateFunction(new Func<string, int, int, CancellationToken, Task<string>>(TraceTcpRoute)), false, true),
-        // These return file contents and environment variable values (which can hold secrets),
-        // so each call waits for the user's permission (chat: ApprovalRequiredAIFunction; MCP: approval gate).
+        // Outbound network calls deserve the same gate as private-data reads: the host name is
+        // resolved via DNS, so embedded data (e.g. exfiltrated from an approved file) reaches the
+        // attacker's own server, and traceroute probes inner networks. Reads of file contents and
+        // environment values (which can hold secrets) come with the same rule. Chat wraps these in
+        // ApprovalRequiredAIFunction; the MCP server in its approval gate.
+        new(CreateFunction(new Func<string, int, CancellationToken, Task<string>>(PingHost)), true, true),
+        new(CreateFunction(new Func<string, int, int, CancellationToken, Task<string>>(TraceTcpRoute)), true, true),
         new(CreateFunction(new Func<string, int, string>(ReadTextFile)), true),
         new(CreateFunction(new Func<string, string>(GetEnvironmentVariable)), true),
         new(CreateFunction(new Func<string, string, string>(ComputeFileHash)), false),
@@ -576,8 +579,13 @@ public static class PcTools
             if (!File.Exists(local))
                 return $"File not found: {path}";
             maxChars = Math.Clamp(maxChars, 1, 20000);
-            var text = File.ReadAllText(local);
-            return text.Length <= maxChars ? text : text[..maxChars] + "\n...(truncated)";
+            // Read only what will be returned: an approved multi-GB log must not be pulled into
+            // memory in full just to show its first 20,000 characters.
+            using var reader = new StreamReader(local);
+            var buffer = new char[maxChars];
+            var read = reader.Read(buffer, 0, maxChars);
+            var text = new string(buffer, 0, read);
+            return reader.Peek() >= 0 ? text + "\n...(truncated)" : text;
         }
         catch (Exception ex)
         {

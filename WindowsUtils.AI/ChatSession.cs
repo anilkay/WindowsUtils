@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using OpenAI.Chat;
+using WindowsUtils.Core;
 
 // ChatReasoningEffortLevel is marked experimental (OPENAI001) but is the only
 // way to send reasoning_effort; scoped suppression for this file.
@@ -234,17 +235,49 @@ public sealed class ChatSession
 
         string Argument(string name) =>
             call.Arguments is not null && call.Arguments.TryGetValue(name, out var value) ? value?.ToString() ?? "" : "";
+        string ArgOr(string name, string fallback)
+        {
+            var value = Argument(name);
+            return value.Length > 0 ? value : fallback;
+        }
+        var localPath = PcTools.ToLocalPath(Argument("path"));
         var prompt = call.Name switch
         {
+            // The size is shown so an unexpectedly huge file can be declined without reading it.
             nameof(PcTools.ReadTextFile) =>
-                $"The AI model wants to read this file:\n\n{PcTools.ToLocalPath(Argument("path")) ?? Argument("path")}\n\n"
+                $"The AI model wants to read this file ({FileSizeText(localPath)}):\n\n{localPath ?? Argument("path")}\n\n"
                 + $"Its text will be sent to {destination}.",
             nameof(PcTools.GetEnvironmentVariable) =>
                 $"The AI model wants to read this environment variable:\n\n{Argument("name")}\n\n"
                 + $"Its value will be sent to {destination}.",
+            // The host name is shown: DNS resolves it, so whatever the model embedded in it leaves
+            // this PC to an outside server — the user should be able to spot that before it happens.
+            nameof(PcTools.PingHost) =>
+                $"The AI model wants to ping this host:\n\n{ArgOr("host", "?")} ({ArgOr("count", "4")} tries)\n\n"
+                + $"Resolving the name and the probes leave this PC over the network; the result goes to {destination}.",
+            nameof(PcTools.TraceTcpRoute) =>
+                $"The AI model wants to trace the route to this host over TCP:\n\n{ArgOr("host", "?")} "
+                + $"(port {ArgOr("port", "80")}, up to {ArgOr("maxHops", "10")} hops)\n\n"
+                + $"Resolving the name and the probes leave this PC over the network, through its "
+                + $"firewall; the result goes to {destination}.",
             _ => $"The AI model wants to run the tool {call.Name}. Its result will be sent to {destination}.",
         };
         return new(call.Name, prompt + "\n\nAllow?");
+    }
+
+    // Human-readable size of the file that ReadTextFile is about to be allowed to read.
+    private static string FileSizeText(string? path)
+    {
+        if (path is null)
+            return "unknown size";
+        try
+        {
+            return ByteFormatter.FormatBytes(new FileInfo(path).Length);
+        }
+        catch (Exception)
+        {
+            return "unknown size";
+        }
     }
 
     public static bool IsReasoningEffortError(Exception ex)
