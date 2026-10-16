@@ -35,7 +35,6 @@ public class ChatControl : UtilityControl
     private CancellationTokenSource? _modelsCts;
     private string? _modelsLoadedFor;
     private McpServerHost? _mcpHost;
-    private bool _mcpHelpShown;
 
     public ChatControl()
     {
@@ -348,20 +347,15 @@ public class ChatControl : UtilityControl
         {
             _mcpHost = await McpServerHost.StartAsync(options);
             _mcpButton.Text = "Stop MCP server";
-            _transcript.AddNote($"MCP server running at {_mcpHost.Url} — add this URL to an MCP client "
-                + "(e.g. a VS Code mcp.json entry). It exposes the read-only tools and the AI agent; "
-                + "it only listens on this PC.");
+            _transcript.AddNote($"MCP server running at {_mcpHost.Url} — it exposes the read-only tools and "
+                + "the AI agent; the bearer token was shown in a dialog and is new on every start.");
             _statusLabel.Text = $"MCP server: {_mcpHost.Url}";
-            if (!_mcpHelpShown)
-            {
-                _mcpHelpShown = true;
-                MessageBox.Show(this,
-                    $"MCP server started.\n\nURL: {_mcpHost.Url}\n\n"
-                    + "Add this URL to any MCP client on this PC (VS Code mcp.json, Claude Desktop, another agent). "
-                    + "It exposes the read-only PC tools and this AI agent as ask_windows_utils_agent. "
-                    + "The server only accepts connections from this PC, and stops when the button is clicked again.",
-                    "AI Chat", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+            MessageBox.Show(this,
+                $"MCP server started.\n\n{_mcpHost.ClientConfigJson}\n\n"
+                + "Add this entry to the mcp.json of an MCP client on this PC (e.g. VS Code). The token is new "
+                + "every time the server starts, so update the client after restarting it. The server only "
+                + "accepts connections from this PC and stops when the button is clicked again.",
+                "AI Chat", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (Exception ex)
         {

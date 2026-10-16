@@ -1,4 +1,4 @@
-using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -15,7 +15,8 @@ namespace WindowsUtils.AI;
 /// <param name="Agent">Endpoint, model and key used by the agent exposed as the ask_windows_utils_agent tool.</param>
 /// <param name="ApproveToolCall">Asked before a tool reads a file's text or an environment variable;
 /// when null those calls are declined. Runs on a background (Kestrel) thread, so a UI callback must marshal itself.</param>
-/// <param name="Port">First port to try; if it is already in use the next ports are tried too.</param>
+/// <param name="Port">The port to listen on. The server refuses to start when it is busy — it never
+/// silently moves to another port, so an MCP client configured for this port cannot be fooled.</param>
 public sealed record McpServerHostOptions(
     ChatAgentOptions Agent,
     Func<ToolApprovalRequest, CancellationToken, Task<bool>>? ApproveToolCall = null,
@@ -25,17 +26,21 @@ public sealed record McpServerHostOptions(
 /// Hosts a local Model Context Protocol server (streamable HTTP) that exposes the WindowsUtils AI
 /// agent as the ask_windows_utils_agent tool and the read-only PcTools as native MCP tools, so any
 /// MCP client on this PC (VS Code, Claude Desktop, another agent) can use them. Started/stopped by
-/// the AI Chat screen. Binds loopback only: nothing outside this PC can connect, there is no
-/// authentication, but any local process can call it while it runs.
+/// the AI Chat screen. Binds loopback only, requires a per-start bearer token (<see cref="Token"/>,
+/// shown with a ready mcp.json snippet), and rejects requests whose Host or Origin header is not
+/// this server's own (DNS-rebinding guard). Other local processes can still call it while it runs,
+/// but only with the token.
 /// </summary>
 public sealed class McpServerHost : IAsyncDisposable
 {
     public const int DefaultPort = 5199;
-    private const int PortAttempts = 10;
     private const string Path = "/mcp";
 
     private readonly McpServerHostOptions _options;
     private readonly ChatSession _agent;
+    // New secret per start: MCP clients must be reconfigured after each restart anyway, and a
+    // token that outlives the process would be readable from %AppData% by any local process.
+    private readonly string _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     // The agent owns one conversation session; two MCP clients (or two parallel calls) must take turns.
     private readonly SemaphoreSlim _agentLock = new(1, 1);
     private WebApplication? _app;
@@ -44,13 +49,30 @@ public sealed class McpServerHost : IAsyncDisposable
     /// <summary>The URL an MCP client connects to, e.g. http://localhost:5199/mcp.</summary>
     public string Url { get; private set; } = "";
 
+    /// <summary>The bearer token requests must carry (Authorization: Bearer). New on every start.</summary>
+    public string Token => _token;
+
+    /// <summary>A ready-to-paste mcp.json entry for HTTP-based MCP clients (e.g. VS Code).</summary>
+    public string ClientConfigJson =>
+        $$"""
+        {
+          "servers": {
+            "windowsutils": {
+              "type": "http",
+              "url": "{{Url}}",
+              "headers": { "Authorization": "Bearer {{_token}}" }
+            }
+          }
+        }
+        """;
+
     private McpServerHost(McpServerHostOptions options, ChatSession agent)
     {
         _options = options;
         _agent = agent;
     }
 
-    /// <summary>Starts the server, trying <see cref="McpServerHostOptions.Port"/> and the following ports.</summary>
+    /// <summary>Starts the server on <see cref="McpServerHostOptions.Port"/>.</summary>
     public static async Task<McpServerHost> StartAsync(McpServerHostOptions options, CancellationToken cancellationToken = default)
     {
         // Rejects incomplete endpoint/model/key settings before Kestrel starts, so the caller can show the message.
@@ -69,61 +91,69 @@ public sealed class McpServerHost : IAsyncDisposable
 
     private async Task StartCoreAsync(CancellationToken cancellationToken)
     {
-        Exception? lastError = null;
-        for (var port = _options.Port; port < _options.Port + PortAttempts; port++)
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.Logging.ClearProviders(); // the app has no console to log to
+        builder.Services
+            .AddMcpServer(o =>
+            {
+                o.ServerInfo = new Implementation { Name = "windowsutils", Title = "WindowsUtils", Version = "1.0" };
+                o.ServerInstructions =
+                    "Read-only tools that inspect this Windows PC: system, drives, processes, network, firewall, "
+                    + "startup programs, local users, folders, files and hashes. ask_windows_utils_agent is an AI "
+                    + "assistant that answers questions about this PC with the same tools. Nothing is ever changed. "
+                    + "Reading a file's text or an environment variable value asks the desktop user for permission first.";
+            })
+            .WithHttpTransport()
+            .WithTools(CreateTools());
+        builder.WebHost.UseUrls($"http://localhost:{_options.Port}");
+        var app = builder.Build();
+        // Request guard, checked before any MCP handling:
+        // - Host must be this server's own loopback name:port (DNS rebinding rewrites Host).
+        // - Origin, when a browser sends one, must be this server's own; MCP clients send none.
+        // - Authorization must carry this start's bearer token; wrong or missing gets 401.
+        var serverPort = _options.Port;
+        var token = _token;
+        app.Use(async (context, next) =>
         {
-            var builder = WebApplication.CreateSlimBuilder();
-            builder.Logging.ClearProviders(); // the app has no console to log to
-            builder.Services
-                .AddMcpServer(o =>
-                {
-                    o.ServerInfo = new Implementation { Name = "windowsutils", Title = "WindowsUtils", Version = "1.0" };
-                    o.ServerInstructions =
-                        "Read-only tools that inspect this Windows PC: system, drives, processes, network, firewall, "
-                        + "startup programs, local users, folders, files and hashes. ask_windows_utils_agent is an AI "
-                        + "assistant that answers questions about this PC with the same tools. Nothing is ever changed. "
-                        + "Reading a file's text or an environment variable value asks the desktop user for permission first.";
-                })
-                .WithHttpTransport()
-                .WithTools(CreateTools());
-            builder.WebHost.UseUrls($"http://localhost:{port}");
-            var app = builder.Build();
-            // MCP security requirement (DNS rebinding): a browser page on another origin must not be
-            // able to call these tools. Requests without an Origin header (normal MCP clients) pass;
-            // a present-but-foreign Origin gets a 403.
-            var serverPort = port;
-            app.Use(async (context, next) =>
+            var headers = context.Request.Headers;
+            if (!IsThisServerHost(headers.Host.ToString(), serverPort)
+                || (headers.Origin.Count > 0 && !IsThisServerOrigin(headers.Origin.ToString(), serverPort)))
             {
-                var origin = context.Request.Headers.Origin.ToString();
-                if (origin.Length > 0 && !IsThisServerOrigin(origin, serverPort))
-                {
-                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    return;
-                }
-                await next(context);
-            });
-            app.MapMcp(Path);
-            try
-            {
-                await app.StartAsync(cancellationToken);
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
             }
-            catch (Exception ex)
+            // The auth scheme is case-insensitive (RFC 7235); the token itself is compared in constant time.
+            var auth = headers.Authorization.ToString();
+            var presented = auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? auth["Bearer ".Length..].Trim() : "";
+            if (!FixedTimeEquals(presented, token))
             {
-                await app.DisposeAsync();
-                if (ex is not (IOException or SocketException))
-                    throw;
-                // Another program already listens on this port; try the next one.
-                lastError = ex;
-                continue;
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
             }
-            _app = app;
-            Url = $"http://localhost:{port}{Path}";
-            return;
+            await next(context);
+        });
+        app.MapMcp(Path);
+        try
+        {
+            await app.StartAsync(cancellationToken);
         }
-        throw new InvalidOperationException(
-            $"Could not start the MCP server: ports {_options.Port} to {_options.Port + PortAttempts - 1} are all in use. "
-            + lastError?.Message);
+        catch (Exception ex)
+        {
+            await app.DisposeAsync();
+            throw new InvalidOperationException(
+                $"Could not start the MCP server on port {_options.Port}: it is probably already in use by another "
+                + $"program. Free the port or change it. ({ex.Message})", ex);
+        }
+        _app = app;
+        Url = $"http://localhost:{serverPort}{Path}";
     }
+
+    // Only the server's own host names are accepted. Browsers put the host they think they are
+    // talking to into Host; non-browser MCP clients put the address they connect to, which matches.
+    private static bool IsThisServerHost(string host, int port) =>
+        host.Equals($"localhost:{port}", StringComparison.OrdinalIgnoreCase)
+        || host.Equals($"127.0.0.1:{port}", StringComparison.OrdinalIgnoreCase)
+        || host.Equals($"[::1]:{port}", StringComparison.OrdinalIgnoreCase);
 
     // Only the server's own loopback origins are accepted (browsers use the scheme+host+port
     // form). Non-browser MCP clients send no Origin at all and skip this check.
@@ -131,6 +161,15 @@ public sealed class McpServerHost : IAsyncDisposable
         origin.Equals($"http://localhost:{port}", StringComparison.OrdinalIgnoreCase)
         || origin.Equals($"http://127.0.0.1:{port}", StringComparison.OrdinalIgnoreCase)
         || origin.Equals($"http://[::1]:{port}", StringComparison.OrdinalIgnoreCase);
+
+    // Token comparison must not leak through timing; string == short-circuits on the first
+    // differing character.
+    private static bool FixedTimeEquals(string actual, string expected)
+    {
+        var a = Encoding.UTF8.GetBytes(actual);
+        var b = Encoding.UTF8.GetBytes(expected);
+        return a.Length == b.Length && CryptographicOperations.FixedTimeEquals(a, b);
+    }
 
     private IReadOnlyList<McpServerTool> CreateTools()
     {
