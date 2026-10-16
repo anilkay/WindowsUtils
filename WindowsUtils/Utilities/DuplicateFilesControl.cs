@@ -273,7 +273,7 @@ public class DuplicateFilesControl : UtilityControl
         try
         {
             if (File.Exists(path))
-                Process.Start("explorer.exe", $"/select,\"{path}\"");
+                Process.Start(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), $"/select,\"{path}\"");
             else
                 _statusLabel.Text = "File no longer exists.";
         }
