@@ -522,10 +522,11 @@ public static class PcTools
         return candidate is not null && Directory.Exists(candidate) ? candidate : null;
     }
 
-    // The model chooses tool paths, so they are untrusted. Only drive-letter paths (C:\...)
-    // are allowed: touching a UNC (\\host\share) or device path (\\?\, \\.\, \??\) makes
-    // Windows connect to that host over SMB/WebDAV and send the user's NTLM credentials.
-    // Checked before any file-system call; Path.GetFullPath is purely lexical.
+    // The model chooses tool paths, so they are untrusted. Only paths on known-local drives
+    // (C:\...) are allowed: touching a UNC (\\host\share) or device path (\\?\, \\.\, \??\) makes
+    // Windows connect to that host over SMB/WebDAV and send the user's NTLM credentials, and a
+    // mapped drive letter points at the same kind of share. The lexical check runs first so no
+    // file-system call happens for those; the root's drive type is then read from the system.
     internal static string? ToLocalPath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -539,9 +540,24 @@ public static class PcTools
         {
             return null;
         }
-        return full.Length >= 3 && char.IsAsciiLetter(full[0]) && full[1] == ':' && full[2] == '\\'
-            ? full
-            : null;
+        if (full.Length < 3 || !char.IsAsciiLetter(full[0]) || full[1] != ':' || full[2] != '\\')
+            return null;
+        return IsKnownLocalDrive(full[..3]) ? full : null;
+    }
+
+    // Mapped drives must be refused even when they look like ordinary letters. Only drive types
+    // that stay on this machine pass; a subst drive reports itself as Fixed and can't be detected.
+    private static bool IsKnownLocalDrive(string driveRoot)
+    {
+        try
+        {
+            return new DriveInfo(driveRoot).DriveType
+                is not (DriveType.Network or DriveType.NoRootDirectory or DriveType.Unknown);
+        }
+        catch (Exception)
+        {
+            return true;
+        }
     }
 
     private static string LocalOnlyMessage(string path) =>

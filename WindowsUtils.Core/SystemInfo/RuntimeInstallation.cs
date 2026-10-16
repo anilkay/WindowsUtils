@@ -19,9 +19,22 @@ public sealed record RuntimeInstallation(string Version, string Vendor, string H
 /// </summary>
 internal static class RuntimeProbe
 {
-    /// <summary>Only local drive paths: probing a UNC path can hang or send the user's credentials.</summary>
-    public static bool IsLocalDrivePath(string path) =>
-        path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':';
+    /// <summary>Only paths on known-local drives: probing a UNC path or a mapped network drive can
+    /// hang or send the user's credentials to another host, so the root's drive type is checked.</summary>
+    public static bool IsLocalDrivePath(string path)
+    {
+        if (path.Length < 2 || !char.IsAsciiLetter(path[0]) || path[1] != ':')
+            return false;
+        try
+        {
+            return new DriveInfo(char.ToUpperInvariant(path[0]) + ":\\").DriveType
+                is not (DriveType.Network or DriveType.NoRootDirectory or DriveType.Unknown);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 
     /// <summary>Full path without a trailing slash, or null if it is not a local drive path.</summary>
     public static string? LocalFullPath(string? path)

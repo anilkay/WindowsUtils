@@ -37,7 +37,7 @@ WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── ChatSession.cs        # agent creation, session, streaming, reasoning-effort retry
 ├── PcTools.cs            # read-only PC inspection tools exposed to the agent
 ├── ChatSettingsStore.cs  # endpoint/model persistence (%AppData%\WindowsUtils\chat.json)
-├── CredentialStore.cs    # API key in Windows Credential Manager (advapi32)
+├── CredentialStore.cs    # API key in Windows Credential Manager (advapi32), one entry per endpoint host
 ├── McpServerHost.cs      # local MCP server (streamable HTTP, loopback): agent as tool + PcTools as MCP tools
 ├── ReasoningEffortChatClient.cs # injects reasoning_effort into requests
 └── ResponseTimeoutChatClient.cs # fails a model call with TimeoutException when the endpoint goes silent
@@ -83,7 +83,7 @@ Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, 
 - File enumeration: `EnumerationOptions { IgnoreInaccessible = true, AttributesToSkip = System | ReparsePoint }` — avoids access-denied crashes, junction loops, and OneDrive placeholder downloads.
 - Top-N file selection: `PriorityQueue<T, long>` min-heap capped at N (constant memory).
 - File deletion: `RecycleBin.SendToRecycleBin(path, owner)` (Core) after a Yes/No confirmation. It passes `FOF_WANTNUKEWARNING`, so files that cannot be recycled (too large, network/USB drive) prompt before permanent deletion; it returns false if the user keeps the file. Do **not** use `Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(..., UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin)`: it silently deletes such files permanently.
-- AI tool paths are untrusted (the model picks them): pass them through `PcTools.ToLocalPath` / `ResolveDirectory` before any file-system call. Only drive-letter paths are allowed; UNC and device paths would make Windows send NTLM credentials to arbitrary hosts.
+- AI tool paths are untrusted (the model picks them): pass them through `PcTools.ToLocalPath` / `ResolveDirectory` before any file-system call. Only paths on known-local drives are allowed: UNC and device paths would make Windows send NTLM credentials to arbitrary hosts, and mapped network drives are rejected by the root's drive type (a subst drive reports itself as Fixed and cannot be told apart).
 - Registry access: read-only, wrapped in try/catch (access denied is expected).
 - Open file in Explorer: `Process.Start(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), $"/select,\"{path}\"")` — always the full path, so a planted `explorer.exe` next to the app's exe cannot be started instead.
 
