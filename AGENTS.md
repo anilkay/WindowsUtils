@@ -43,6 +43,8 @@ WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── McpServerHost.cs      # local MCP server (streamable HTTP, loopback): agent as tool + PcTools as MCP tools
 ├── ReasoningEffortChatClient.cs # injects reasoning_effort into requests
 └── ResponseTimeoutChatClient.cs # fails a model call with TimeoutException when the endpoint goes silent
+WindowsUtils.Cli/         # console CLI (net10.0, assembly "wutils"), references AI: read-only tools as subcommands
+└── Program.cs            # command table, help, arg parsing; wraps the public PcTools methods
 WindowsUtils/            # WinForms app (net10.0-windows), references Core
 ├── Program.cs            # entry point, launches MainForm
 ├── MainForm.cs           # shell: owner-drawn sidebar nav + page header + content panel

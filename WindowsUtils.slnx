@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="WindowsUtils.AI/WindowsUtils.AI.csproj" />
+  <Project Path="WindowsUtils.Cli/WindowsUtils.Cli.csproj" />
   <Project Path="WindowsUtils.Core/WindowsUtils.Core.csproj" />
   <Project Path="WindowsUtils/WindowsUtils.csproj" />
 </Solution>

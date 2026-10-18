@@ -50,6 +50,18 @@ dotnet build
 dotnet run --project WindowsUtils
 ```
 
+## CLI
+
+A command-line interface (`wutils`) exposes the same read-only PC tools as a set of subcommands — handy for scripts and terminals.
+
+```powershell
+dotnet run --project WindowsUtils.Cli -- system
+dotnet run --project WindowsUtils.Cli -- hash C:\path\to\file.iso SHA-256
+dotnet run --project WindowsUtils.Cli -- largest C:\Temp 20
+```
+
+Run `wutils help` to list every command. All commands are read-only; nothing is changed.
+
 ## Single-file build
 
 Both options produce one `WindowsUtils.exe` in `WindowsUtils\bin\Release\net10.0-windows\win-x64\publish\`.
@@ -90,6 +102,8 @@ WindowsUtils.AI/         # AI chat logic (net10.0): agent session, PC tools, set
 ├── PcTools.cs            # read-only PC inspection tools for the agent
 ├── ChatSettingsStore.cs  # persisted endpoint/model settings
 └── CredentialStore.cs    # API key in Windows Credential Manager
+WindowsUtils.Cli/         # console CLI (net10.0, "wutils"): read-only tools as subcommands
+└── Program.cs            # command table, help, arg parsing; wraps PcTools
 WindowsUtils/            # WinForms app (net10.0-windows)
 ├── Program.cs            # entry point
 ├── MainForm.cs           # shell: sidebar navigation + content host
