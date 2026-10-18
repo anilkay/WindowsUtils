@@ -41,7 +41,7 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 
 ## Logging
 
-The app logs with the standard `Microsoft.Extensions.Logging` (`ILogger` / `ILoggerFactory`) to a daily rolling file at `%AppData%\WindowsUtils\logs\windowsutils-yyyyMMdd.log`. Startup, shutdown, unhandled exceptions, AI Chat and the MCP server are logged. The minimum level defaults to `Information` and can be changed in `Program.ConfigureLogging()`.
+The app logs with the standard `Microsoft.Extensions.Logging` (`ILogger` / `ILoggerFactory`) to a daily rolling file at `%AppData%\WindowsUtils\logs\windowsutils-yyyyMMdd.log`. Startup, shutdown, unhandled exceptions, AI Chat and the MCP server are logged. The minimum level defaults to `Information` and can be changed in `Program.ConfigureLogging()`. Log files older than 7 days are deleted automatically.
 
 ## Build & run
 

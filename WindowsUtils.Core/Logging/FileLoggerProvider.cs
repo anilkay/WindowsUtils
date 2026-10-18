@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 
 namespace WindowsUtils.Core.Logging;
@@ -6,7 +7,8 @@ namespace WindowsUtils.Core.Logging;
 /// An <see cref="ILoggerProvider"/> that writes to a daily rolling text file, one per day
 /// (<c>windowsutils-yyyyMMdd.log</c>). Thread-safe and lazy: the file is only opened on the
 /// first write of each day. A failed write (disk full, missing AppData, ...) is swallowed so
-/// logging can never take the application down.
+/// logging can never take the application down. Log files older than <paramref name="retainDays"/>
+/// are deleted when the file rolls to a new day.
 /// </summary>
 public sealed class FileLoggerProvider : ILoggerProvider
 {
@@ -15,10 +17,12 @@ public sealed class FileLoggerProvider : ILoggerProvider
 
     /// <param name="directory">The folder that will contain the log files.</param>
     /// <param name="minLevel">Entries below this level are dropped.</param>
-    public FileLoggerProvider(string directory, LogLevel minLevel = LogLevel.Information)
+    /// <param name="retainDays">How many days of log files to keep; older files are deleted.
+    /// Use a negative value to keep them all.</param>
+    public FileLoggerProvider(string directory, LogLevel minLevel = LogLevel.Information, int retainDays = 7)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
-        _writer = new FileLogWriter(directory);
+        _writer = new FileLogWriter(directory, retainDays);
         _minLevel = minLevel;
     }
 
@@ -62,13 +66,21 @@ internal sealed class FileLogger : ILogger
 /// <summary>Appends formatted lines to the current day's file, rolling at midnight.</summary>
 internal sealed class FileLogWriter : IDisposable
 {
+    private const string FilePrefix = "windowsutils-";
+    private const string FileExtension = ".log";
+
     private readonly object _lock = new();
     private readonly string _directory;
+    private readonly int _retainDays;
     private StreamWriter? _writer;
     private string _currentPath = "";
     private bool _failed;
 
-    public FileLogWriter(string directory) => _directory = directory;
+    public FileLogWriter(string directory, int retainDays)
+    {
+        _directory = directory;
+        _retainDays = retainDays;
+    }
 
     public void Write(LogLevel level, string category, string message)
     {
@@ -76,7 +88,7 @@ internal sealed class FileLogWriter : IDisposable
             return;
 
         var now = DateTime.Now;
-        var path = Path.Combine(_directory, $"windowsutils-{now:yyyyMMdd}.log");
+        var path = Path.Combine(_directory, FilePrefix + $"{now:yyyyMMdd}" + FileExtension);
         try
         {
             lock (_lock)
@@ -87,6 +99,7 @@ internal sealed class FileLogWriter : IDisposable
                     Directory.CreateDirectory(_directory);
                     _writer = new StreamWriter(path, append: true) { AutoFlush = true };
                     _currentPath = path;
+                    DeleteOldLogs(now);
                 }
                 _writer.WriteLine($"{now:yyyy-MM-dd HH:mm:ss.fff} [{LevelLabel(level),-5}] [{category}] {message}");
             }
@@ -97,6 +110,37 @@ internal sealed class FileLogWriter : IDisposable
             _failed = true;
             try { _writer?.Dispose(); } catch (Exception) { }
             _writer = null;
+        }
+    }
+
+    /// <summary>Deletes log files whose name date is older than <see cref="_retainDays"/> days.
+    /// Runs only when the day rolls over (or on the first write), so at most once a day.</summary>
+    private void DeleteOldLogs(DateTime now)
+    {
+        if (_retainDays < 0)
+            return;
+
+        var cutoff = now.Date.AddDays(-_retainDays);
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(_directory, FilePrefix + "*" + FileExtension))
+            {
+                var name = Path.GetFileNameWithoutExtension(file);
+                if (!name.StartsWith(FilePrefix, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var datePart = name[FilePrefix.Length..];
+                if (datePart.Length != 8
+                    || !DateTime.TryParseExact(datePart, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+                    || date >= cutoff)
+                {
+                    continue;
+                }
+                try { File.Delete(file); } catch (Exception) { /* in use by another process */ }
+            }
+        }
+        catch (Exception)
+        {
+            // Cleanup must never crash logging.
         }
     }
 
