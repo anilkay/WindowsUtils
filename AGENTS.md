@@ -9,7 +9,7 @@ dotnet build                        # from repo root (solution dir)
 dotnet run --project WindowsUtils   # run the app
 ```
 
-NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`; MCP server: `ModelContextProtocol.AspNetCore` + the `Microsoft.AspNetCore.App` framework reference). `WindowsUtils.Core` is dependency-free. The WinForms app itself has no package references.
+NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`; MCP server: `ModelContextProtocol.AspNetCore` + the `Microsoft.AspNetCore.App` framework reference). `WindowsUtils.Core` depends only on `Microsoft.Extensions.Logging.Abstractions` (for `ILogger`). The WinForms app references `Microsoft.Extensions.Logging` (for `LoggerFactory`).
 
 ## Structure
 
@@ -24,6 +24,8 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── Net/NetworkInfo.cs    # network adapters + ping
 ├── Net/TcpTraceroute.cs  # TCP traceroute: TTL-stepped SYN probes + ICMP hop mapping (needs admin)
 ├── Net/FirewallRules.cs  # enabled inbound allow rules with TCP/UDP ports via HNetCfg.FwPolicy2 COM (read-only)
+├── Logging/FileLoggerProvider.cs # ILoggerProvider writing to a daily rolling file under %AppData%\WindowsUtils\logs
+├── Logging/AppLog.cs     # process-wide logger factory accessor (AppLog.Logger<T>()) + log directory
 ├── SystemInfo/StartupPrograms.cs # registry Run/RunOnce entries (read-only)
 ├── SystemInfo/LocalUsers.cs # local user accounts via netapi32 NetUserEnum (read-only)
 ├── SystemInfo/UserManagement.cs # create/delete local users via netapi32 (needs admin); UI-only, not exposed to AI Chat
@@ -31,7 +33,7 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── SystemInfo/JavaDetector.cs # installed Java: JAVA_HOME, vendor registry keys, PATH; reads the "release" file
 ├── SystemInfo/PythonDetector.cs # installed Python: PATH (skips WindowsApps aliases), PEP 514 registry keys, Python install manager (%LOCALAPPDATA%\Python), pyenv-win
 ├── SystemInfo/NodeDetector.cs # installed Node.js: PATH, installer registry key, nvm-windows, Volta, fnm
-└── SystemInfo/WindowsFeatures.cs # optional Windows features (Telnet, IIS, SMB1, Hyper-V, WSL, ...) via WMI COM, read-only
+├── SystemInfo/WindowsFeatures.cs # optional Windows features (Telnet, IIS, SMB1, Hyper-V, WSL, ...) via WMI COM, read-only
 └── SystemInfo/NetFrameworkDetector.cs # installed .NET Framework: NDP\v4\Full Release DWORD (4.5-4.8.1) + legacy v3.5/v3.0/v2.0/v1.1 keys
 WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── ChatSession.cs        # agent creation, session, streaming, reasoning-effort retry

@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using WindowsUtils.AI;
+using WindowsUtils.Core.Logging;
 
 namespace WindowsUtils.Utilities;
 
@@ -7,6 +9,8 @@ namespace WindowsUtils.Utilities;
 /// logic lives in WindowsUtils.AI; this control only builds the UI and displays results.</summary>
 public class ChatControl : UtilityControl
 {
+    private static ILogger Log => AppLog.Logger<ChatControl>();
+
     private readonly TextBox _endpointBox = new() { Text = "https://api.openai.com/v1", Width = 260 };
     // Editable drop-down: filled from the endpoint's /models list, but any name can still be typed.
     private readonly ComboBox _modelBox = new() { Text = "gpt-4o-mini", Width = 220, DropDownStyle = ComboBoxStyle.DropDown, MaxDropDownItems = 20 };
@@ -234,6 +238,7 @@ public class ChatControl : UtilityControl
                 return;
             // Remember the failure too, so opening the list does not retry on every click.
             _modelsLoadedFor = sourceKey;
+            Log.LogWarning(ex, "Could not list models.");
             _statusLabel.Text = ChatSession.IsUnauthorizedError(ex)
                 ? "Could not list models: the endpoint rejected the API key (HTTP 401/403). You can still type a model name."
                 : $"Could not list models ({ex.Message}). You can still type a model name.";
@@ -262,9 +267,10 @@ public class ChatControl : UtilityControl
             // Fires only when the text differs; cover the saved-endpoint-no-change case directly.
             OnEndpointChanged();
         }
-        catch
+        catch (Exception ex)
         {
             // Corrupt settings file: ignore and start fresh.
+            Log.LogWarning(ex, "Could not load persisted chat settings; starting fresh.");
         }
     }
 
@@ -386,6 +392,7 @@ public class ChatControl : UtilityControl
         catch (Exception ex)
         {
             _statusLabel.Text = "Could not start the MCP server.";
+            Log.LogError(ex, "Could not start the MCP server.");
             MessageBox.Show($"Could not start the MCP server: {ex.Message}", "AI Chat",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
@@ -498,6 +505,7 @@ public class ChatControl : UtilityControl
             catch (Exception ex) when (ChatSession.IsReasoningEffortError(ex) && SelectedEffort() != ReasoningEffort.Default)
             {
                 // Model rejects reasoning_effort: drop it and retry once instead of failing.
+                Log.LogInformation("Reasoning effort rejected by the model; retrying without it.");
                 _reasoningBox.SelectedItem = "Default";
                 if (_rememberCheck.Checked)
                     SaveSettings();
@@ -521,6 +529,7 @@ public class ChatControl : UtilityControl
         {
             // The endpoint went silent. The session is still valid (the failed turn is not in
             // its history), so keep it: sending again continues the same conversation.
+            Log.LogWarning(ex, "The endpoint went silent (response timeout).");
             _transcript.EndAssistantMessage();
             _transcript.AddError($"No response: {ex.Message}");
             _statusLabel.Text = "No response from the endpoint.";
@@ -529,6 +538,7 @@ public class ChatControl : UtilityControl
         {
             // A failed turn can leave the session in an unusable state (e.g. a 400
             // mid-run); drop it so the next send starts fresh instead of failing again.
+            Log.LogError(ex, "Chat request failed.");
             session.Reset();
             _transcript.EndAssistantMessage();
             if (ChatSession.IsUnauthorizedError(ex))

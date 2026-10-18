@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using WindowsUtils.Core.Logging;
 
 namespace WindowsUtils.AI;
 
@@ -35,6 +36,8 @@ public sealed class McpServerHost : IAsyncDisposable
 {
     public const int DefaultPort = 5199;
     private const string Path = "/mcp";
+
+    private static ILogger Log => AppLog.Logger<McpServerHost>();
 
     private readonly McpServerHostOptions _options;
     private readonly ChatSession _agent;
@@ -93,6 +96,7 @@ public sealed class McpServerHost : IAsyncDisposable
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders(); // the app has no console to log to
+        builder.Logging.AddProvider(new FileLoggerProvider(AppLog.LogDirectory));
         builder.Services
             .AddMcpServer(o =>
             {
@@ -140,12 +144,14 @@ public sealed class McpServerHost : IAsyncDisposable
         catch (Exception ex)
         {
             await app.DisposeAsync();
+            Log.LogError(ex, "Could not start the MCP server on port {Port}.", _options.Port);
             throw new InvalidOperationException(
                 $"Could not start the MCP server on port {_options.Port}: it is probably already in use by another "
                 + $"program. Free the port or change it. ({ex.Message})", ex);
         }
         _app = app;
         Url = $"http://localhost:{serverPort}{Path}";
+        Log.LogInformation("MCP server listening on {Url}.", Url);
     }
 
     // Only the server's own host names are accepted. Browsers put the host they think they are
@@ -230,6 +236,7 @@ public sealed class McpServerHost : IAsyncDisposable
             catch (Exception ex)
             {
                 _agent.Reset(); // a failed turn can leave the session in an unusable state
+                Log.LogError(ex, "MCP agent call failed.");
                 return $"Error: {ex.Message}";
             }
         }
@@ -270,6 +277,7 @@ public sealed class McpServerHost : IAsyncDisposable
             // In-flight requests are cut off when the app closes anyway.
         }
         await app.DisposeAsync();
+        Log.LogInformation("MCP server stopped.");
     }
 
     public async ValueTask DisposeAsync() => await StopAsync();

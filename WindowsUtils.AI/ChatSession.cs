@@ -2,8 +2,10 @@ using System.ClientModel;
 using System.Runtime.CompilerServices;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using WindowsUtils.Core;
+using WindowsUtils.Core.Logging;
 
 // ChatReasoningEffortLevel is marked experimental (OPENAI001) but is the only
 // way to send reasoning_effort; scoped suppression for this file.
@@ -70,6 +72,8 @@ public sealed class ChatSession
     /// OpenAI SDK's 100 s network timeout so this clear error fires before the SDK's own retries.</summary>
     public static readonly TimeSpan DefaultResponseTimeout = TimeSpan.FromSeconds(90);
 
+    private static ILogger Log => AppLog.Logger<ChatSession>();
+
     private AIAgent _agent;
     private AgentSession? _session;
     private ChatAgentOptions _options;
@@ -93,6 +97,7 @@ public sealed class ChatSession
             throw new InvalidOperationException("Enter an API key.");
 
         var normalized = options with { Endpoint = endpoint, ApiKey = apiKey };
+        Log.LogInformation("Creating chat session for {Endpoint} with model {Model}.", endpoint, options.Model);
         return new ChatSession(normalized, BuildAgent(normalized, endpointUri));
     }
 
@@ -151,6 +156,7 @@ public sealed class ChatSession
     {
         if (!HasReasoningEffort)
             return;
+        Log.LogWarning("Disabling reasoning_effort: the model rejected it; retrying without it.");
         _options = _options with { Reasoning = ReasoningEffort.Default };
         if (!Uri.TryCreate(_options.Endpoint, UriKind.Absolute, out var endpointUri))
             throw new InvalidOperationException("Enter a valid endpoint URL (e.g. https://api.openai.com/v1).");
@@ -214,6 +220,8 @@ public sealed class ChatSession
             {
                 var approved = approveToolCall is not null
                     && await approveToolCall(DescribeToolCall(approval.ToolCall), cancellationToken);
+                var toolName = approval.ToolCall is FunctionCallContent call ? call.Name : approval.ToolCall.GetType().Name;
+                Log.LogInformation("Tool {Tool} approval: {Approved}.", toolName, approved ? "allowed" : "declined");
                 answers.Add(approval.CreateResponse(approved, approved ? null : "The user did not allow this tool call."));
             }
             input = [new(ChatRole.User, answers)];

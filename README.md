@@ -1,6 +1,6 @@
 # WindowsUtils
 
-A Windows Forms app (.NET 10) that bundles small, handy Windows utilities in a single window with sidebar navigation. Reusable logic (hashing, file scanning, formatting) lives in the dependency-free `WindowsUtils.Core` class library, usable from any .NET app.
+A Windows Forms app (.NET 10) that bundles small, handy Windows utilities in a single window with sidebar navigation. Reusable logic (hashing, file scanning, formatting, logging) lives in the `WindowsUtils.Core` class library, usable from any .NET app.
 
 The UI follows the Windows 11 look: it switches between light and dark with your Windows setting and uses your Windows accent color.
 
@@ -39,6 +39,10 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 - Windows
 - [.NET 10 SDK](https://dotnet.microsoft.com/download) to build from source (not needed for the [release download](#download))
 
+## Logging
+
+The app logs with the standard `Microsoft.Extensions.Logging` (`ILogger` / `ILoggerFactory`) to a daily rolling file at `%AppData%\WindowsUtils\logs\windowsutils-yyyyMMdd.log`. Startup, shutdown, unhandled exceptions, AI Chat and the MCP server are logged. The minimum level defaults to `Information` and can be changed in `Program.ConfigureLogging()`.
+
 ## Build & run
 
 ```powershell
@@ -75,9 +79,11 @@ dotnet publish WindowsUtils -c Release -r win-x64 --self-contained=false `
 ## Project structure
 
 ```
-WindowsUtils.Core/       # reusable class library (net10.0, zero dependencies)
+WindowsUtils.Core/       # reusable class library (net10.0): hashing, scanning, logging
 ├── Hashing/FileHasher.cs # file hashing + verification
 ├── ByteFormatter.cs      # human-readable byte sizes
+├── Logging/AppLog.cs     # process-wide logger accessor + %AppData%\WindowsUtils\logs path
+├── Logging/FileLoggerProvider.cs # ILoggerProvider that writes a daily rolling log file
 └── IO/FileScanner.cs     # top-N largest files, directory sizes
 WindowsUtils.AI/         # AI chat logic (net10.0): agent session, PC tools, settings, credentials
 ├── ChatSession.cs        # agent creation, streaming, reasoning-effort handling
