@@ -65,18 +65,40 @@ static class Program
                 return Print(await PcTools.PingHost(a[0], n, ct));
             }),
 
-        new("traceroute", ["trace"], "traceroute <host> [port] [hops]", "Trace the network path over TCP (needs admin).",
+        new("traceroute", ["trace"], "traceroute <host> [port] [hops] [--no-names] [--timeout ms]", "Trace the network path over TCP (needs admin).",
             async (a, ct) =>
             {
-                if (a.Length == 0)
-                    return Error("Missing host.", "traceroute <host> [port] [hops]");
-                var port = OptionalInt(a, 1, "port", 80, out var error);
+                var positional = new List<string>();
+                var resolveNames = true;
+                var timeoutMs = 2000;
+                for (var i = 0; i < a.Length; i++)
+                {
+                    if (a[i].Equals("--no-names", StringComparison.OrdinalIgnoreCase))
+                    {
+                        resolveNames = false;
+                    }
+                    else if (a[i].Equals("--timeout", StringComparison.OrdinalIgnoreCase)
+                        && i + 1 < a.Length && int.TryParse(a[i + 1], out var parsedTimeout))
+                    {
+                        timeoutMs = parsedTimeout;
+                        i++;
+                    }
+                    else
+                    {
+                        positional.Add(a[i]);
+                    }
+                }
+
+                var args = positional.ToArray();
+                if (args.Length == 0)
+                    return Error("Missing host.", "traceroute <host> [port] [hops] [--no-names] [--timeout ms]");
+                var port = OptionalInt(args, 1, "port", 80, out var error);
                 if (error is not null)
                     return Error(error);
-                var hops = OptionalInt(a, 2, "hops", 10, out error);
+                var hops = OptionalInt(args, 2, "hops", 10, out error);
                 if (error is not null)
                     return Error(error);
-                return Print(await PcTools.TraceTcpRoute(a[0], port, hops, ct));
+                return Print(await PcTools.TraceTcpRoute(args[0], port, hops, resolveNames, timeoutMs, ct));
             }),
 
         new("startup", [], "startup", "Programs registered to start with Windows.",
@@ -89,6 +111,14 @@ static class Program
             (a, _) => a.Length == 0
                 ? Fail("Missing variable name.", "env <name>")
                 : Ok(PcTools.GetEnvironmentVariable(a[0]))),
+
+        new("envlist", ["envall"], "envlist [User|Machine|Process] [n]", "List environment variables (values may be sensitive).",
+            (a, _) =>
+            {
+                var target = a.Length > 0 ? a[0] : "Process";
+                var n = OptionalInt(a, 1, "count", 200, out var error);
+                return error is not null ? Fail(error) : Ok(PcTools.ListEnvironmentVariables(target, n));
+            }),
 
         new("files", [], "files <dir> [pattern] [n]", "List files and folders in a directory.",
             (a, _) =>

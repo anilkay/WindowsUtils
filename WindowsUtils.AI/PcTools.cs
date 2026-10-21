@@ -1,6 +1,7 @@
 using System.ClientModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using Microsoft.Extensions.AI;
 using OpenAI;
@@ -70,9 +71,10 @@ public static class PcTools
         // environment values (which can hold secrets) come with the same rule. Chat wraps these in
         // ApprovalRequiredAIFunction; the MCP server in its approval gate.
         new(CreateFunction(new Func<string, int, CancellationToken, Task<string>>(PingHost)), true, true),
-        new(CreateFunction(new Func<string, int, int, CancellationToken, Task<string>>(TraceTcpRoute)), true, true),
+        new(CreateFunction(new Func<string, int, int, bool, int, CancellationToken, Task<string>>(TraceTcpRoute)), true, true),
         new(CreateFunction(new Func<string, int, string>(ReadTextFile)), true),
         new(CreateFunction(new Func<string, string>(GetEnvironmentVariable)), true),
+        new(CreateFunction(new Func<string, int, string>(ListEnvironmentVariables)), true),
         new(CreateFunction(new Func<string, string, string>(ComputeFileHash)), false),
         new(CreateFunction(new Func<string, string, string>(VerifyFileHash)), false),
     ];
@@ -90,16 +92,44 @@ public static class PcTools
         }
     }
 
-    [Description("Gets basic system info: machine name, user, OS, CPU count, .NET runtime.")]
+    [Description("Gets system info: machine, user, OS and architecture, CPU name, logical processors, "
+        + "total/available RAM and RAM in use, uptime, system directory, screen resolution and the .NET runtime.")]
     public static string GetSystemInfo()
     {
         try
         {
-            return $"Machine: {Environment.MachineName}\n"
-                + $"User: {Environment.UserName}\n"
-                + $"OS: {Environment.OSVersion} (64-bit OS: {Environment.Is64BitOperatingSystem})\n"
-                + $"Processors: {Environment.ProcessorCount}\n"
-                + $"Runtime: {Environment.Version}";
+            var lines = new List<string>
+            {
+                $"Machine: {Environment.MachineName}",
+                $"User: {Environment.UserName}",
+                $"OS: {Environment.OSVersion} (64-bit OS: {Environment.Is64BitOperatingSystem})",
+                $"OS Architecture: {RuntimeInformation.OSArchitecture}",
+                $"CPU: {SystemDetails.CpuName()}",
+                $"Processors: {Environment.ProcessorCount}",
+            };
+
+            var (total, available) = SystemDetails.Memory();
+            if (total > 0)
+            {
+                lines.Add($"Total RAM: {ByteFormatter.FormatBytes((long)total)}");
+                lines.Add($"Available RAM: {ByteFormatter.FormatBytes((long)available)}");
+                lines.Add($"RAM In Use: {100 - available * 100.0 / total:0.#}%");
+            }
+
+            var uptime = SystemDetails.Uptime();
+            lines.Add($"System Uptime: {(int)uptime.TotalDays} days, {uptime.Hours}h {uptime.Minutes}m");
+
+            var systemDirectory = SystemDetails.GetSystemDirectory();
+            if (systemDirectory.Length > 0)
+                lines.Add($"System Directory: {systemDirectory}");
+
+            var (width, height) = SystemDetails.ScreenSize();
+            if (width > 0 && height > 0)
+                lines.Add($"Screen Resolution: {width} x {height}");
+
+            lines.Add($"Runtime: {Environment.Version}");
+            lines.Add($"Framework: {RuntimeInformation.FrameworkDescription}");
+            return string.Join(Environment.NewLine, lines);
         }
         catch (Exception ex)
         {
@@ -195,7 +225,7 @@ public static class PcTools
         }
     }
 
-    [Description("Lists ready drives with free/total space.")]
+    [Description("Lists drives with type, volume label, file system and free/total space (and free %).")]
     public static string GetDrives()
     {
         try
@@ -204,7 +234,17 @@ public static class PcTools
             {
                 if (!d.IsReady)
                     return $"{d.Name} ({d.DriveType}, not ready)";
-                return $"{d.Name} ({d.DriveType}, {d.VolumeLabel}) free {d.AvailableFreeSpace / 1024 / 1024 / 1024} GB of {d.TotalSize / 1024 / 1024 / 1024} GB";
+                try
+                {
+                    var freePercent = d.TotalSize > 0 ? d.AvailableFreeSpace * 100.0 / d.TotalSize : 0;
+                    return $"{d.Name} ({d.DriveType}, {d.VolumeLabel}, {d.DriveFormat}) "
+                        + $"free {ByteFormatter.FormatBytes(d.AvailableFreeSpace)} of {ByteFormatter.FormatBytes(d.TotalSize)} "
+                        + $"({freePercent:0.#}% free)";
+                }
+                catch (Exception)
+                {
+                    return $"{d.Name} ({d.DriveType}, not readable)";
+                }
             });
             return string.Join(Environment.NewLine, rows);
         }
@@ -482,7 +522,9 @@ public static class PcTools
     public static async Task<string> TraceTcpRoute(
         [Description("Host name or IP address, e.g. example.com.")] string host,
         [Description("TCP port to probe (1-65535).")] int port = 80,
-        [Description("Maximum hops to trace (1-16).")] int maxHops = 10,
+        [Description("Maximum hops to trace (1-64).")] int maxHops = 10,
+        [Description("Resolve each hop's IP address to a host name (slower).")] bool resolveHostNames = true,
+        [Description("Per-probe timeout in milliseconds (500-10000).")] int timeoutMs = 2000,
         CancellationToken cancellationToken = default)
     {
         try
@@ -490,12 +532,12 @@ public static class PcTools
             if (string.IsNullOrWhiteSpace(host) || host.Trim().Length > 253)
                 return "Enter a host name or IP address.";
             var hops = await TcpTraceroute.TraceAsync(host.Trim(), Math.Clamp(port, 1, 65535),
-                Math.Clamp(maxHops, 1, 16), 2000, resolveHostNames: false, progress: null,
+                Math.Clamp(maxHops, 1, 64), Math.Clamp(timeoutMs, 500, 10000), resolveHostNames, progress: null,
                 cancellationToken: cancellationToken);
             if (hops.Count == 0)
                 return "(no hops)";
             return string.Join(Environment.NewLine, hops.Select(h =>
-                $"{h.Ttl,2}  {(h.Address ?? "*"),-15} {FormatRtt(h.Rtt1Ms),-8} {FormatRtt(h.Rtt2Ms),-8} {FormatRtt(h.Rtt3Ms),-8} {h.Note ?? ""}".TrimEnd()));
+                $"{h.Ttl,2}  {(h.Address ?? "*"),-15} {(h.HostName ?? ""),-30} {FormatRtt(h.Rtt1Ms),-8} {FormatRtt(h.Rtt2Ms),-8} {FormatRtt(h.Rtt3Ms),-8} {h.Note ?? ""}".TrimEnd()));
         }
         catch (OperationCanceledException)
         {
@@ -603,6 +645,42 @@ public static class PcTools
             if (value is null)
                 return "(not set)";
             return value.Length <= 2000 ? value : value[..2000] + "\n...(truncated)";
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    [Description("Lists environment variables (NAME=value) for a target: User, Machine or Process. Read-only. "
+        + "The user is asked to allow this call because the values can contain secrets.")]
+    public static string ListEnvironmentVariables(
+        [Description("Target: User, Machine or Process (default Process).")] string target = "Process",
+        [Description("Maximum variables to return (1-500).")] int maxResults = 200)
+    {
+        try
+        {
+            var parsed = target.Trim().ToLowerInvariant() switch
+            {
+                "user" => EnvironmentVariableTarget.User,
+                "machine" or "system" => EnvironmentVariableTarget.Machine,
+                _ => EnvironmentVariableTarget.Process,
+            };
+            maxResults = Math.Clamp(maxResults, 1, 500);
+
+            var entries = Environment.GetEnvironmentVariables(parsed)
+                .Cast<System.Collections.DictionaryEntry>()
+                .Select(e => $"{e.Key}={e.Value}")
+                .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (entries.Count == 0)
+                return $"(no {parsed} environment variables)";
+
+            var lines = entries.Take(maxResults)
+                .Select(s => s.Length <= 2000 ? s : s[..2000] + "...(truncated)")
+                .ToList();
+            var more = entries.Count > maxResults ? $"{Environment.NewLine}... {entries.Count - maxResults} more" : "";
+            return string.Join(Environment.NewLine, lines) + more;
         }
         catch (Exception ex)
         {

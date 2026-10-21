@@ -258,6 +258,9 @@ public sealed class ChatSession
             nameof(PcTools.GetEnvironmentVariable) =>
                 $"The AI model wants to read this environment variable:\n\n{Argument("name")}\n\n"
                 + $"Its value will be sent to {destination}.",
+            nameof(PcTools.ListEnvironmentVariables) =>
+                $"The AI model wants to list the {ArgOr("target", "Process")} environment variables.\n\n"
+                + $"Their values will be sent to {destination}.",
             // The host name is shown: DNS resolves it, so whatever the model embedded in it leaves
             // this PC to an outside server — the user should be able to spot that before it happens.
             nameof(PcTools.PingHost) =>

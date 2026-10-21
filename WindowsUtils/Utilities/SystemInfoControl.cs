@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using Microsoft.Win32;
 using WindowsUtils.Core.SystemInfo;
 
 namespace WindowsUtils.Utilities;
@@ -76,10 +75,10 @@ public class SystemInfoControl : UtilityControl
         yield return ("Machine Name", Environment.MachineName);
         yield return ("Current User", $@"{Environment.UserDomainName}\{Environment.UserName}");
         yield return (".NET Runtime", RuntimeInformation.FrameworkDescription);
-        yield return ("CPU", CpuName());
+        yield return ("CPU", SystemDetails.CpuName());
         yield return ("Logical Processors", Environment.ProcessorCount.ToString());
 
-        var (total, available) = MemoryInfo();
+        var (total, available) = SystemDetails.Memory();
         if (total > 0)
         {
             yield return ("Total RAM", FormatBytes((long)total));
@@ -87,47 +86,10 @@ public class SystemInfoControl : UtilityControl
             yield return ("RAM In Use", $"{100 - available * 100.0 / total:0.#}%");
         }
 
-        var uptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
+        var uptime = SystemDetails.Uptime();
         yield return ("System Uptime", $"{(int)uptime.TotalDays} days, {uptime.Hours}h {uptime.Minutes}m");
-        yield return ("System Directory", Environment.SystemDirectory);
-        yield return ("Screen Resolution", $"{SystemInformation.PrimaryMonitorSize.Width} x {SystemInformation.PrimaryMonitorSize.Height}");
+        yield return ("System Directory", SystemDetails.GetSystemDirectory());
+        var (screenWidth, screenHeight) = SystemDetails.ScreenSize();
+        yield return ("Screen Resolution", $"{screenWidth} x {screenHeight}");
     }
-
-    private static string CpuName()
-    {
-        try
-        {
-            using var key = Registry.LocalMachine.OpenSubKey(@"HARDWARE\DESCRIPTION\System\CentralProcessor\0");
-            var name = key?.GetValue("ProcessorNameString") as string;
-            return string.IsNullOrWhiteSpace(name) ? "Unknown" : name.Trim();
-        }
-        catch
-        {
-            return "Unknown";
-        }
-    }
-
-    private static (ulong Total, ulong Available) MemoryInfo()
-    {
-        var status = new MEMORYSTATUSEX();
-        return GlobalMemoryStatusEx(status) ? (status.ullTotalPhys, status.ullAvailPhys) : (0, 0);
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private sealed class MEMORYSTATUSEX
-    {
-        public uint dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>();
-        public uint dwMemoryLoad;
-        public ulong ullTotalPhys;
-        public ulong ullAvailPhys;
-        public ulong ullTotalPageFile;
-        public ulong ullAvailPageFile;
-        public ulong ullTotalVirtual;
-        public ulong ullAvailVirtual;
-        public ulong ullAvailExtendedVirtual;
-    }
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GlobalMemoryStatusEx(MEMORYSTATUSEX lpBuffer);
 }
