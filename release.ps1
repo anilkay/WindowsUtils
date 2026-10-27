@@ -6,7 +6,8 @@
     Checks that you are on an up-to-date, clean main branch and that the tag
     does not exist yet, then creates an annotated tag and pushes it. The push
     starts .github/workflows/release.yml, which builds the self-contained
-    WindowsUtils.exe and publishes the GitHub release with the zip attached.
+    WindowsUtils.exe for win-x64 and win-arm64 and publishes the GitHub release
+    with both zips attached.
 
 .EXAMPLE
     .\release.ps1 0.0.2

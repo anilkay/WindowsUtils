@@ -1,5 +1,5 @@
 # Builds self-contained single-file WindowsUtils.exe (no .NET runtime needed) and the
-# wutils.exe CLI, and attaches both as zips to the GitHub release for the pushed tag.
+# wutils.exe CLI for each runtime, and attaches them as zips to the GitHub release for the pushed tag.
 name: Release
 
 on:
@@ -11,8 +11,11 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        rid: [win-x64, win-arm64]
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +26,7 @@ jobs:
       - name: Publish app
         run: >
           dotnet publish WindowsUtils/WindowsUtils.csproj
-          -c Release -r win-x64 --self-contained true
+          -c Release -r ${{ matrix.rid }} --self-contained true
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true
@@ -33,7 +36,7 @@ jobs:
       - name: Publish CLI
         run: >
           dotnet publish WindowsUtils.Cli/WindowsUtils.Cli.csproj
-          -c Release -r win-x64 --self-contained true
+          -c Release -r ${{ matrix.rid }} --self-contained true
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true
@@ -42,14 +45,31 @@ jobs:
 
       - name: Zip app
         shell: pwsh
-        run: Compress-Archive publish/app/WindowsUtils.exe "WindowsUtils-${{ github.ref_name }}-win-x64.zip"
+        run: Compress-Archive publish/app/WindowsUtils.exe "WindowsUtils-${{ github.ref_name }}-${{ matrix.rid }}.zip"
 
       - name: Zip CLI
         shell: pwsh
-        run: Compress-Archive publish/cli/wutils.exe "WindowsUtils-cli-${{ github.ref_name }}-win-x64.zip"
+        run: Compress-Archive publish/cli/wutils.exe "WindowsUtils-cli-${{ github.ref_name }}-${{ matrix.rid }}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.rid }}
+          path: WindowsUtils-*.zip
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
 
       - name: Create release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" "WindowsUtils-${{ github.ref_name }}-win-x64.zip" "WindowsUtils-cli-${{ github.ref_name }}-win-x64.zip" --title "${{ github.ref_name }}" --generate-notes
+        run: gh release create "${{ github.ref_name }}" (Get-ChildItem dist/*.zip).FullName --title "${{ github.ref_name }}" --generate-notes
