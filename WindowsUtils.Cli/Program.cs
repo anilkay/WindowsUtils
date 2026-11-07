@@ -212,6 +212,7 @@ static class Program
         if (args.Length == 0)
         {
             PrintHelp();
+            PauseIfStartedFromExplorer();
             return 0;
         }
 
@@ -250,6 +251,31 @@ static class Program
             return 130;
         }
     }
+
+    // Double-clicking wutils.exe opens a console window that closes as soon as the help text is
+    // printed, which looks like a crash. When this process is the only one attached to its console
+    // (it was not started from a terminal), say how to use it and wait for a key instead.
+    private static void PauseIfStartedFromExplorer()
+    {
+        if (!OperatingSystem.IsWindows() || Console.IsInputRedirected || Console.IsOutputRedirected)
+            return;
+        try
+        {
+            if (GetConsoleProcessList(new uint[2], 2) != 1)
+                return;
+        }
+        catch (Exception)
+        {
+            return;
+        }
+        Console.WriteLine();
+        Console.WriteLine("wutils is a command-line tool: open a terminal (PowerShell or cmd) here and run e.g. 'wutils system'.");
+        Console.WriteLine("The desktop app is WindowsUtils.exe. Press any key to close this window.");
+        Console.ReadKey(intercept: true);
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint GetConsoleProcessList(uint[] processList, uint processCount);
 
     private static Command? FindCommand(string name) =>
         Commands.FirstOrDefault(c => c.Name == name || c.Aliases.Contains(name));
