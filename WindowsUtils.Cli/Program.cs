@@ -104,6 +104,9 @@ static class Program
         new("startup", [], "startup", "Programs registered to start with Windows.",
             (_, _) => Ok(PcTools.GetStartupPrograms())),
 
+        new("battery", ["power"], "battery", "Battery health, charge and the active power plan.",
+            (_, _) => Ok(PcTools.GetBatteryReport())),
+
         new("users", [], "users", "Local user accounts and their status.",
             (_, _) => Ok(PcTools.GetLocalUsers())),
 

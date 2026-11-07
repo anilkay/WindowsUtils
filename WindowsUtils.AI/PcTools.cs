@@ -63,6 +63,7 @@ public static class PcTools
         new(CreateFunction(new Func<string, int, CancellationToken, string>(GetFolderSizes)), false),
         new(CreateFunction(new Func<CancellationToken, string>(GetTempCleanupSizes)), false),
         new(CreateFunction(new Func<string>(GetStartupPrograms)), false),
+        new(CreateFunction(new Func<string>(GetBatteryReport)), false),
         new(CreateFunction(new Func<string>(GetLocalUsers)), false),
         new(CreateFunction(new Func<string>(GetNetworkAdapters)), false),
         new(CreateFunction(new Func<string>(GetFirewallPorts)), false),
@@ -435,6 +436,43 @@ public static class PcTools
         catch (OperationCanceledException)
         {
             throw;
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    [Description("Battery and power report: power source (AC or battery), charge %, charging state, time remaining, "
+        + "battery saver, the active power plan, and per battery its design and full-charge capacity, health % (wear), "
+        + "cycle count and chemistry. Read-only.")]
+    public static string GetBatteryReport()
+    {
+        try
+        {
+            var report = PowerInfo.Get();
+            var lines = new List<string>
+            {
+                $"Power source: {report.PowerSource}",
+                $"Power plan: {report.PowerPlan ?? "unknown"}",
+                $"Battery saver: {(report.BatterySaverOn ? "on" : "off")}",
+            };
+            if (!report.HasBattery)
+            {
+                lines.Add("Battery: none detected (desktop, server or virtual machine).");
+                return string.Join(Environment.NewLine, lines);
+            }
+            lines.Add($"Charge: {(report.ChargePercent is int p ? $"{p}%" : "unknown")}, {report.ChargeState}");
+            if (report.TimeRemaining is TimeSpan t)
+                lines.Add($"Time remaining: {(int)t.TotalHours}h {t.Minutes}m");
+            foreach (var b in report.Batteries)
+            {
+                lines.Add($"{b.Name}{(b.Manufacturer is null ? "" : $" ({b.Manufacturer})")}{(b.Chemistry is null ? "" : $", {b.Chemistry}")}: "
+                    + $"design {b.DesignCapacity?.ToString("N0") ?? "?"} mWh, full charge {b.FullChargeCapacity?.ToString("N0") ?? "?"} mWh, "
+                    + $"health {(b.HealthPercent is double h ? $"{h:0.#}%" : "unknown")}, cycles {b.CycleCount?.ToString() ?? "unknown"}"
+                    + (b.RateMilliwatts is long r ? $", {b.State?.ToLowerInvariant()} at {r / 1000.0:0.0} W" : ""));
+            }
+            return string.Join(Environment.NewLine, lines);
         }
         catch (Exception ex)
         {

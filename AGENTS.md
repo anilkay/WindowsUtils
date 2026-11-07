@@ -34,6 +34,8 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── SystemInfo/JavaDetector.cs # installed Java: JAVA_HOME, vendor registry keys, PATH; reads the "release" file
 ├── SystemInfo/PythonDetector.cs # installed Python: PATH (skips WindowsApps aliases), PEP 514 registry keys, Python install manager (%LOCALAPPDATA%\Python), pyenv-win
 ├── SystemInfo/NodeDetector.cs # installed Node.js: PATH, installer registry key, nvm-windows, Volta, fnm
+├── SystemInfo/PowerReport.cs # battery (GetSystemPowerStatus + WMI root\wmi capacity/health/cycles) and active power plan (powrprof), read-only
+├── SystemInfo/Wmi.cs     # read-only WQL query helper over the WbemScripting COM object (no System.Management package)
 ├── SystemInfo/WindowsFeatures.cs # optional Windows features (Telnet, IIS, SMB1, Hyper-V, WSL, ...) via WMI COM, read-only
 └── SystemInfo/NetFrameworkDetector.cs # installed .NET Framework: NDP\v4\Full Release DWORD (4.5-4.8.1) + legacy v3.5/v3.0/v2.0/v1.1 keys
 WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
@@ -55,7 +57,7 @@ WindowsUtils/            # WinForms app (net10.0-windows), references Core
     └── *Control.cs       # one self-contained UserControl per utility
 ```
 
-Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, Firewall Ports, File Hash Calculator, Environment Variables, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, Temp Cleaner, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
+Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, Firewall Ports, File Hash Calculator, Environment Variables, Battery and Power, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, Temp Cleaner, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
 
 ## Conventions
 

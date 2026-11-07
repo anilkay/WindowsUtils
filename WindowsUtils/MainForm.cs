@@ -26,6 +26,7 @@ public class MainForm : Form
         ("Firewall Ports", "\uE72E", "TCP/UDP ports opened by enabled inbound firewall rules.", () => new FirewallPortsControl()),
         ("File Hash Calculator", "\uE928", "Compute and verify MD5, SHA-1, SHA-256 and SHA-512 hashes.", () => new FileHashControl()),
         ("Environment Variables", "\uE943", "Browse user, machine and process variables.", () => new EnvironmentVariablesControl()),
+        ("Battery and Power", "\uE83F", "Battery health, charge state and the active power plan.", () => new BatteryControl()),
         ("Startup Programs", "\uE7E8", "Programs registered to start with Windows.", () => new StartupProgramsControl()),
         ("Local Users", "\uE716", "Local user accounts, their status and last logon.", () => new LocalUsersControl()),
         ("AI Chat", "\uE8F2", "Ask an AI assistant that can inspect this PC.", () => new ChatControl()),

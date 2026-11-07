@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 
@@ -56,10 +55,10 @@ public static class WindowsFeatures
         var ids = Known.Where(k => k.Id is not null).Select(k => k.Id!).ToArray();
         var services = Known.Where(k => k.Service is not null).Select(k => k.Service!).ToArray();
 
-        var featureStates = QueryWmi(
+        var featureStates = Wmi.Query(@"root\cimv2",
             $"SELECT Name, InstallState FROM Win32_OptionalFeature WHERE {string.Join(" OR ", ids.Select(i => $"Name='{i}'"))}",
             "Name", "InstallState");
-        var serviceStates = QueryWmi(
+        var serviceStates = Wmi.Query(@"root\cimv2",
             $"SELECT Name, State, StartMode FROM Win32_Service WHERE {string.Join(" OR ", services.Select(s => $"Name='{s}'"))}",
             "Name", "State", "StartMode");
 
@@ -110,51 +109,6 @@ public static class WindowsFeatures
         catch (Exception)
         {
             return FeatureState.Unknown;
-        }
-    }
-
-    /// <summary>Runs a WQL query on root\cimv2; returns the requested properties as strings, or null if WMI fails.</summary>
-    [SupportedOSPlatform("windows")]
-    private static List<string?[]>? QueryWmi(string wql, params string[] properties)
-    {
-        object? locator = null, services = null, results = null;
-        try
-        {
-            var type = Type.GetTypeFromProgID("WbemScripting.SWbemLocator");
-            if (type is null)
-                return null;
-            locator = Activator.CreateInstance(type);
-            dynamic loc = locator!;
-            services = loc.ConnectServer(".", @"root\cimv2");
-            dynamic svc = services!;
-            results = svc.ExecQuery(wql);
-
-            var rows = new List<string?[]>();
-            foreach (dynamic item in (System.Collections.IEnumerable)results!)
-            {
-                try
-                {
-                    var row = new string?[properties.Length];
-                    for (var i = 0; i < properties.Length; i++)
-                        row[i] = item.Properties_.Item(properties[i]).Value?.ToString();
-                    rows.Add(row);
-                }
-                finally
-                {
-                    Marshal.ReleaseComObject(item);
-                }
-            }
-            return rows;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-        finally
-        {
-            foreach (var o in new[] { results, services, locator })
-                if (o is not null && Marshal.IsComObject(o))
-                    Marshal.ReleaseComObject(o);
         }
     }
 }

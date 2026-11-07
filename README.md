@@ -28,6 +28,7 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 | **Firewall Ports** | TCP/UDP ports opened by enabled inbound Windows Firewall rules |
 | **File Hash Calculator** | MD5 / SHA-1 / SHA-256 / SHA-512 with hash verification |
 | **Environment Variables** | Browse User / Machine / Process variables |
+| **Battery and Power** | Charge, charging state, battery health (full vs design capacity), cycle count and the active power plan |
 | **Startup Programs** | Programs registered to start with Windows (registry Run keys) |
 | **Local Users** | Local user accounts and their status; add or delete accounts (needs Administrator) |
 | **Folder Size Analyzer** | Sizes of everything inside a folder, sorted largest first |
