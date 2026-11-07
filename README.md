@@ -29,6 +29,7 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 | **File Hash Calculator** | MD5 / SHA-1 / SHA-256 / SHA-512 with hash verification |
 | **Environment Variables** | Browse User / Machine / Process variables |
 | **Battery and Power** | Charge, charging state, battery health (full vs design capacity), cycle count and the active power plan |
+| **Installed Programs** | Installed programs with version, publisher, size and install date; sort by any column, filter by name |
 | **Startup Programs** | Programs registered to start with Windows (registry Run keys) |
 | **Local Users** | Local user accounts and their status; add or delete accounts (needs Administrator) |
 | **Folder Size Analyzer** | Sizes of everything inside a folder, sorted largest first |

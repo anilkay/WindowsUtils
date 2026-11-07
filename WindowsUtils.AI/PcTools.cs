@@ -64,6 +64,7 @@ public static class PcTools
         new(CreateFunction(new Func<CancellationToken, string>(GetTempCleanupSizes)), false),
         new(CreateFunction(new Func<string>(GetStartupPrograms)), false),
         new(CreateFunction(new Func<string>(GetBatteryReport)), false),
+        new(CreateFunction(new Func<string, string, int, string>(GetInstalledPrograms)), false),
         new(CreateFunction(new Func<string>(GetLocalUsers)), false),
         new(CreateFunction(new Func<string>(GetNetworkAdapters)), false),
         new(CreateFunction(new Func<string>(GetFirewallPorts)), false),
@@ -473,6 +474,47 @@ public static class PcTools
                     + (b.RateMilliwatts is long r ? $", {b.State?.ToLowerInvariant()} at {r / 1000.0:0.0} W" : ""));
             }
             return string.Join(Environment.NewLine, lines);
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    [Description("Lists installed programs (as in Apps / Programs and Features, from the registry Uninstall keys): "
+        + "name, version, publisher, size and install date. Sort by name, size (largest first) or date (newest first). Read-only.")]
+    public static string GetInstalledPrograms(
+        [Description("Sort order: name, size or date.")] string sortBy = "name",
+        [Description("Only programs whose name or publisher contains this text (empty = all).")] string filter = "",
+        [Description("Maximum programs to return (1-200).")] int maxResults = 50)
+    {
+        try
+        {
+            IEnumerable<InstalledProgram> programs = InstalledPrograms.Get();
+            if (!string.IsNullOrWhiteSpace(filter))
+            {
+                var text = filter.Trim();
+                programs = programs.Where(p => p.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
+                    || p.Publisher.Contains(text, StringComparison.OrdinalIgnoreCase));
+            }
+            programs = sortBy.Trim().ToLowerInvariant() switch
+            {
+                "size" => programs.OrderByDescending(p => p.SizeBytes ?? -1),
+                "date" or "installed" or "installdate" => programs.OrderByDescending(p => p.InstallDate ?? DateTime.MinValue),
+                _ => programs,
+            };
+            var list = programs.ToList();
+            if (list.Count == 0)
+                return string.IsNullOrWhiteSpace(filter) ? "(no installed programs found)" : $"(no installed programs match '{filter}')";
+
+            maxResults = Math.Clamp(maxResults, 1, 200);
+            var lines = list.Take(maxResults).Select(p =>
+                $"{p.Name}{(p.Version.Length > 0 && !p.Name.Contains(p.Version, StringComparison.OrdinalIgnoreCase) ? $" {p.Version}" : "")}"
+                + (p.Publisher.Length > 0 ? $" ({p.Publisher})" : "")
+                + $", size {(p.SizeBytes is long s ? ByteFormatter.FormatBytes(s) : "unknown")}"
+                + $", installed {p.InstallDate?.ToString("d") ?? "unknown"}");
+            var more = list.Count > maxResults ? $"{Environment.NewLine}... {list.Count - maxResults} more" : "";
+            return $"{list.Count} programs:{Environment.NewLine}" + string.Join(Environment.NewLine, lines) + more;
         }
         catch (Exception ex)
         {

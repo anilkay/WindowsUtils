@@ -101,6 +101,15 @@ static class Program
                 return Print(await PcTools.TraceTcpRoute(args[0], port, hops, resolveNames, timeoutMs, ct));
             }),
 
+        new("programs", ["apps"], "programs [name|size|date] [n] [filter]", "Installed programs, sortable by name, size or date.",
+            (a, _) =>
+            {
+                var n = OptionalInt(a, 1, "count", 50, out var error);
+                return error is not null
+                    ? Fail(error)
+                    : Ok(PcTools.GetInstalledPrograms(a.Length > 0 ? a[0] : "name", a.Length > 2 ? a[2] : "", n));
+            }),
+
         new("startup", [], "startup", "Programs registered to start with Windows.",
             (_, _) => Ok(PcTools.GetStartupPrograms())),
 

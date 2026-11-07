@@ -27,6 +27,7 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── Net/FirewallRules.cs  # enabled inbound allow rules with TCP/UDP ports via HNetCfg.FwPolicy2 COM (read-only)
 ├── Logging/FileLoggerProvider.cs # ILoggerProvider writing to a daily rolling file under %AppData%\WindowsUtils\logs
 ├── Logging/AppLog.cs     # process-wide logger factory accessor (AppLog.Logger<T>()) + log directory
+├── SystemInfo/InstalledPrograms.cs # installed programs from the Uninstall keys (HKLM 64/32-bit + HKCU), read-only
 ├── SystemInfo/StartupPrograms.cs # registry Run/RunOnce entries (read-only)
 ├── SystemInfo/LocalUsers.cs # local user accounts via netapi32 NetUserEnum (read-only)
 ├── SystemInfo/UserManagement.cs # create/delete local users via netapi32 (needs admin); UI-only, not exposed to AI Chat
@@ -57,7 +58,7 @@ WindowsUtils/            # WinForms app (net10.0-windows), references Core
     └── *Control.cs       # one self-contained UserControl per utility
 ```
 
-Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, Firewall Ports, File Hash Calculator, Environment Variables, Battery and Power, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, Temp Cleaner, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
+Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, Firewall Ports, File Hash Calculator, Environment Variables, Battery and Power, Installed Programs, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, Temp Cleaner, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
 
 ## Conventions
 
