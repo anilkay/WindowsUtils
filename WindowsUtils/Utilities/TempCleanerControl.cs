@@ -144,6 +144,7 @@ public class TempCleanerControl : UtilityControl
         var token = _cts.Token;
         SetBusy(true);
         long deleted = 0, freed = 0, skipped = 0;
+        var cancelled = false;
         try
         {
             foreach (var size in selected)
@@ -157,7 +158,7 @@ public class TempCleanerControl : UtilityControl
         }
         catch (OperationCanceledException)
         {
-            // fall through to the summary of what was done before cancelling
+            cancelled = true; // the location being cleaned when Cancel was pressed is not in the totals
         }
         catch (Exception ex)
         {
@@ -169,6 +170,11 @@ public class TempCleanerControl : UtilityControl
         }
 
         await ScanAsync();
+        if (cancelled)
+        {
+            _statusLabel.Text = "Cleaning cancelled; some files may already be deleted (sizes above are current). " + _statusLabel.Text;
+            return;
+        }
         _statusLabel.Text = $"Freed {FormatBytes(freed)} ({deleted:N0} files deleted"
             + (skipped > 0 ? $", {skipped:N0} in use or protected were kept" : "") + "). " + _statusLabel.Text;
     }

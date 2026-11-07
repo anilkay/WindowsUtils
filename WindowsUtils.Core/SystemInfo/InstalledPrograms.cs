@@ -36,9 +36,11 @@ public static class InstalledPrograms
         if (!OperatingSystem.IsWindows())
             return programs;
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (scope, machine, wow64) in Locations)
         {
+            // On 32-bit Windows both registry views are the same key; read it once.
+            if (wow64 && !Environment.Is64BitOperatingSystem)
+                continue;
             try
             {
                 using var baseKey = RegistryKey.OpenBaseKey(machine ? RegistryHive.LocalMachine : RegistryHive.CurrentUser,
@@ -53,8 +55,7 @@ public static class InstalledPrograms
                     {
                         using var key = uninstall.OpenSubKey(subKeyName);
                         var program = key is null ? null : Read(key, scope);
-                        // On 32-bit Windows both views are the same key; the same app can also be listed twice.
-                        if (program is not null && seen.Add($"{program.Name}|{program.Version}"))
+                        if (program is not null)
                             programs.Add(program);
                     }
                     catch (Exception)

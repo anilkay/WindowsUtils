@@ -76,21 +76,31 @@ public static class TempCleaner
     /// </summary>
     public static CleanupResult Clean(CleanupLocation location, CancellationToken cancellationToken = default)
     {
+        // The roots are checked again here, not only in GetLocations: a caller may build its own
+        // location, and a folder measured earlier may have been swapped for a junction since.
+        location = location with { Roots = location.Roots.Where(IsSafeRoot).ToList() };
         var cutoff = DateTime.UtcNow - MinimumAge;
         long deleted = 0, freed = 0, skipped = 0;
         // Listed first so deleting does not disturb the enumeration.
-        foreach (var file in EnumerateFiles(location).Where(f => f.ModifiedUtc < cutoff).ToList())
+        var candidates = new List<CacheFile>();
+        foreach (var file in EnumerateFiles(location))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            try
+            if (file.ModifiedUtc < cutoff)
+                candidates.Add(file);
+        }
+
+        foreach (var file in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (TryDeleteIfOld(file.Path, cutoff) is long bytes)
             {
-                File.Delete(file.Path);
                 deleted++;
-                freed += file.Size;
+                freed += bytes;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            else
             {
-                skipped++; // in use, read-only or access denied
+                skipped++;
             }
         }
 
@@ -100,6 +110,27 @@ public static class TempCleaner
                 RemoveEmptyFolders(root, cutoff, cancellationToken);
         }
         return new CleanupResult(deleted, freed, skipped);
+    }
+
+    // The age is read again from an open handle that lets no one else write the file (sharing
+    // Delete only), so a program that rewrote it after the scan keeps it. Deleting through that
+    // sharing mode marks the file; Windows removes it when the handle closes. Returns the freed
+    // size, or null when the file is recent, in use, read-only or access is denied.
+    private static long? TryDeleteIfOld(string path, DateTime cutoffUtc)
+    {
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Delete);
+            if (File.GetLastWriteTimeUtc(stream.SafeFileHandle) >= cutoffUtc)
+                return null;
+            var size = stream.Length;
+            File.Delete(path);
+            return size;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     private readonly record struct CacheFile(string Path, long Size, DateTime ModifiedUtc);
@@ -153,17 +184,20 @@ public static class TempCleaner
     {
         if (!Directory.Exists(root))
             return;
-        List<string> folders;
+        var folders = new List<string>();
         try
         {
-            folders = Directory.EnumerateDirectories(root, "*", CreateOptions(recursive: true))
-                .OrderByDescending(f => f.Length)
-                .ToList();
+            foreach (var folder in Directory.EnumerateDirectories(root, "*", CreateOptions(recursive: true)))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                folders.Add(folder);
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return;
         }
+        folders.Sort((a, b) => b.Length.CompareTo(a.Length));
         foreach (var folder in folders)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -217,7 +251,8 @@ public static class TempCleaner
 
     // Guards against a misconfigured TEMP (e.g. TEMP=C:\) or an empty special folder turning a cleanup
     // location into a drive root, the Windows folder or the user profile. The root must exist on a
-    // local drive and must not itself be a junction or symlink pointing elsewhere.
+    // local drive, and neither it nor any folder above it may be a junction or symlink: enumeration
+    // skips reparse points below the root, but a link above it would point the whole root elsewhere.
     private static bool IsSafeRoot(string root)
     {
         try
@@ -225,8 +260,8 @@ public static class TempCleaner
             if (string.IsNullOrWhiteSpace(root) || !Path.IsPathFullyQualified(root))
                 return false;
             var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
-            if (full.Length < 3 || full[1] != ':' || full.Count(c => c == '\\') < 2)
-                return false;
+            if (full.Length <= 3 || full[1] != ':' || full[2] != '\\')
+                return false; // not a drive path, or the drive root itself
 
             string[] protectedFolders =
             [
@@ -241,8 +276,13 @@ public static class TempCleaner
                 return false;
 
             var info = new DirectoryInfo(full);
-            if (!info.Exists || info.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            if (!info.Exists)
                 return false;
+            for (var folder = info; folder.Parent is not null; folder = folder.Parent)
+            {
+                if (folder.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    return false;
+            }
             return new DriveInfo(full[..3]).DriveType is DriveType.Fixed or DriveType.Removable;
         }
         catch (Exception)

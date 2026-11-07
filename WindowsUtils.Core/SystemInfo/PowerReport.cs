@@ -106,12 +106,12 @@ public static class PowerInfo
                 if (row[2] == "True")
                 {
                     state = "Charging";
-                    rate = ParseLong(row[4]);
+                    rate = Known(ParseLong(row[4]));
                 }
                 else if (row[3] == "True")
                 {
                     state = "Discharging";
-                    rate = ParseLong(row[5]);
+                    rate = Known(ParseLong(row[5]));
                 }
                 else
                 {
@@ -125,7 +125,7 @@ public static class PowerInfo
                 Chemistry: DecodeChemistry(s[3]),
                 DesignCapacity: Positive(ParseLong(s[4])),
                 FullChargeCapacity: Positive(ParseLong(full.GetValueOrDefault(id))),
-                RemainingCapacity: ParseLong(row?[1]),
+                RemainingCapacity: Known(ParseLong(row?[1])),
                 CycleCount: (int?)Positive(ParseLong(cycles.GetValueOrDefault(id))),
                 State: state,
                 RateMilliwatts: rate is > 0 ? rate : null));
@@ -145,6 +145,10 @@ public static class PowerInfo
 
     // Drivers report 0 (or 0xFFFFFFFF) for values they do not know.
     private static long? Positive(long? value) => value is > 0 and < uint.MaxValue ? value : null;
+
+    // Same, for values where 0 is a real reading (an empty battery, no current flowing).
+    // Rates are signed 32-bit in WMI, so the unknown marker can also arrive as -1 or int.MinValue.
+    private static long? Known(long? value) => value is >= 0 and < int.MaxValue ? value : null;
 
     // Chemistry is four ASCII characters packed into a little-endian uint, e.g. "LION", "LiP ".
     private static string? DecodeChemistry(string? value)
