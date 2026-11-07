@@ -21,6 +21,7 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── IO/FileScanner.cs     # safe file scanning: top-N largest files, folder contents, directory sizes
 ├── IO/DuplicateFinder.cs # duplicate files: group by size, then prefix hash, then SHA-256
 ├── IO/RecycleBin.cs      # send to Recycle Bin via shell, asks before permanent delete
+├── IO/TempCleaner.cs     # temp/cache cleanup over a fixed list of safe folders: measure, then delete files older than 24 h
 ├── Net/NetworkInfo.cs    # network adapters + ping
 ├── Net/TcpTraceroute.cs  # TCP traceroute: TTL-stepped SYN probes + ICMP hop mapping (needs admin)
 ├── Net/FirewallRules.cs  # enabled inbound allow rules with TCP/UDP ports via HNetCfg.FwPolicy2 COM (read-only)
@@ -54,7 +55,7 @@ WindowsUtils/            # WinForms app (net10.0-windows), references Core
     └── *Control.cs       # one self-contained UserControl per utility
 ```
 
-Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, Firewall Ports, File Hash Calculator, Environment Variables, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
+Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, Firewall Ports, File Hash Calculator, Environment Variables, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, Temp Cleaner, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
 
 ## Conventions
 

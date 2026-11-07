@@ -61,6 +61,7 @@ public static class PcTools
         new(CreateFunction(new Func<string, int, bool, string>(GetLargestFiles)), false),
         new(CreateFunction(new Func<string, int, int, CancellationToken, string>(FindDuplicateFiles)), false),
         new(CreateFunction(new Func<string, int, CancellationToken, string>(GetFolderSizes)), false),
+        new(CreateFunction(new Func<CancellationToken, string>(GetTempCleanupSizes)), false),
         new(CreateFunction(new Func<string>(GetStartupPrograms)), false),
         new(CreateFunction(new Func<string>(GetLocalUsers)), false),
         new(CreateFunction(new Func<string>(GetNetworkAdapters)), false),
@@ -398,6 +399,37 @@ public static class PcTools
             };
             lines.AddRange(items.Take(top).Select(i =>
                 $"{ByteFormatter.FormatBytes(i.Size),-10} {(i.IsFolder ? "[folder]" : "[file]  ")} {i.Name}"));
+            return string.Join(Environment.NewLine, lines);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    [Description("Reports how much space temporary and cache files take in the safe cleanup locations (user and Windows Temp, "
+        + "thumbnail cache, Edge/Chrome/Firefox caches, error reports, crash dumps), and how much could be cleaned "
+        + "(files older than 24 hours). Read-only: it never deletes anything; cleaning is done by the user on the Temp Cleaner screen.")]
+    public static string GetTempCleanupSizes(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var sizes = TempCleaner.GetLocations().Select(l => TempCleaner.Measure(l, cancellationToken)).ToList();
+            if (sizes.Count == 0)
+                return "(no temp or cache locations found)";
+            var lines = new List<string>
+            {
+                $"Total {ByteFormatter.FormatBytes(sizes.Sum(s => s.Bytes))}; "
+                    + $"{ByteFormatter.FormatBytes(sizes.Sum(s => s.CleanableBytes))} could be cleaned (older than 24 hours).",
+            };
+            lines.AddRange(sizes.Select(s =>
+                $"{s.Location.Name}: {ByteFormatter.FormatBytes(s.Bytes)} in {s.Files:N0} files, "
+                + $"cleanable {ByteFormatter.FormatBytes(s.CleanableBytes)} ({string.Join("; ", s.Location.Roots.Take(3))}"
+                + (s.Location.Roots.Count > 3 ? $"; +{s.Location.Roots.Count - 3} more" : "") + ")"));
             return string.Join(Environment.NewLine, lines);
         }
         catch (OperationCanceledException)

@@ -32,6 +32,7 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 | **Local Users** | Local user accounts and their status; add or delete accounts (needs Administrator) |
 | **Folder Size Analyzer** | Sizes of everything inside a folder, sorted largest first |
 | **Largest Files** | Scans drives/folders for the top 100 largest files; open in Explorer or delete to Recycle Bin |
+| **Temp Cleaner** | Sizes of temp, browser/thumbnail cache, error report and crash dump folders; cleans the ones you tick after a confirmation (files older than 24 h only) |
 | **AI Chat** | Chat with an AI agent that can inspect this PC via read-only tools (needs an API key) |
 
 ## Requirements

@@ -169,6 +169,9 @@ static class Program
                 return error is not null ? Fail(error) : Ok(PcTools.FindDuplicateFiles(dir, minMb, n, ct));
             }),
 
+        new("temp", ["tempsize"], "temp", "Space used by temp and cache folders (read-only, deletes nothing).",
+            (_, ct) => Ok(PcTools.GetTempCleanupSizes(ct))),
+
         new("read", [], "read <file> [n]", "Read a text file (first n characters).",
             (a, _) =>
             {
