@@ -1,4 +1,5 @@
 using System.Text;
+using FluentResults;
 using WindowsUtils.AI;
 
 namespace WindowsUtils.Cli;
@@ -39,11 +40,7 @@ static class Program
             (_, _) => Ok(PcTools.GetWindowsFeatures())),
 
         new("processes", [], "processes [n]", "Top processes by memory usage.",
-            (a, _) =>
-            {
-                var n = OptionalInt(a, 0, "process count", 10, out var error);
-                return error is not null ? Fail(error) : Ok(PcTools.GetProcesses(n));
-            }),
+            (a, _) => Respond(OptionalInt(a, 0, "process count", 10).Map(PcTools.GetProcesses))),
 
         new("disks", [], "disks", "Drives with free/total space.",
             (_, _) => Ok(PcTools.GetDrives())),
@@ -59,10 +56,10 @@ static class Program
             {
                 if (a.Length == 0)
                     return Error("Missing host.", "ping <host> [n]");
-                var n = OptionalInt(a, 1, "count", 4, out var error);
-                if (error is not null)
-                    return Error(error);
-                return Print(await PcTools.PingHost(a[0], n, ct));
+                var n = OptionalInt(a, 1, "count", 4);
+                if (n.IsFailed)
+                    return Error(n.Errors[0].Message);
+                return Print(await PcTools.PingHost(a[0], n.Value, ct));
             }),
 
         new("traceroute", ["trace"], "traceroute <host> [port] [hops] [--no-names] [--timeout ms]", "Trace the network path over TCP (needs admin).",
@@ -92,23 +89,16 @@ static class Program
                 var args = positional.ToArray();
                 if (args.Length == 0)
                     return Error("Missing host.", "traceroute <host> [port] [hops] [--no-names] [--timeout ms]");
-                var port = OptionalInt(args, 1, "port", 80, out var error);
-                if (error is not null)
-                    return Error(error);
-                var hops = OptionalInt(args, 2, "hops", 10, out error);
-                if (error is not null)
-                    return Error(error);
-                return Print(await PcTools.TraceTcpRoute(args[0], port, hops, resolveNames, timeoutMs, ct));
+                var limits = OptionalInt(args, 1, "port", 80)
+                    .Bind(port => OptionalInt(args, 2, "hops", 10).Map(hops => (Port: port, Hops: hops)));
+                if (limits.IsFailed)
+                    return Error(limits.Errors[0].Message);
+                return Print(await PcTools.TraceTcpRoute(args[0], limits.Value.Port, limits.Value.Hops, resolveNames, timeoutMs, ct));
             }),
 
         new("programs", ["apps"], "programs [name|size|date] [n] [filter]", "Installed programs, sortable by name, size or date.",
-            (a, _) =>
-            {
-                var n = OptionalInt(a, 1, "count", 50, out var error);
-                return error is not null
-                    ? Fail(error)
-                    : Ok(PcTools.GetInstalledPrograms(a.Length > 0 ? a[0] : "name", a.Length > 2 ? a[2] : "", n));
-            }),
+            (a, _) => Respond(OptionalInt(a, 1, "count", 50)
+                .Map(n => PcTools.GetInstalledPrograms(a.Length > 0 ? a[0] : "name", a.Length > 2 ? a[2] : "", n)))),
 
         new("startup", [], "startup", "Programs registered to start with Windows.",
             (_, _) => Ok(PcTools.GetStartupPrograms())),
@@ -128,8 +118,7 @@ static class Program
             (a, _) =>
             {
                 var target = a.Length > 0 ? a[0] : "Process";
-                var n = OptionalInt(a, 1, "count", 200, out var error);
-                return error is not null ? Fail(error) : Ok(PcTools.ListEnvironmentVariables(target, n));
+                return Respond(OptionalInt(a, 1, "count", 200).Map(n => PcTools.ListEnvironmentVariables(target, n)));
             }),
 
         new("files", [], "files <dir> [pattern] [n]", "List files and folders in a directory.",
@@ -137,10 +126,7 @@ static class Program
             {
                 if (a.Length == 0)
                     return Fail("Missing directory.", "files <dir> [pattern] [n]");
-                var n = OptionalInt(a, 2, "count", 50, out var error);
-                return error is not null
-                    ? Fail(error)
-                    : Ok(PcTools.ListFiles(a[0], a.Length > 1 ? a[1] : "*.*", n));
+                return Respond(OptionalInt(a, 2, "count", 50).Map(n => PcTools.ListFiles(a[0], a.Length > 1 ? a[1] : "*.*", n)));
             }),
 
         new("folders", [], "folders <dir> [pattern] [n]", "List subfolders in a directory.",
@@ -148,37 +134,30 @@ static class Program
             {
                 if (a.Length == 0)
                     return Fail("Missing directory.", "folders <dir> [pattern] [n]");
-                var n = OptionalInt(a, 2, "count", 50, out var error);
-                return error is not null
-                    ? Fail(error)
-                    : Ok(PcTools.ListFolders(a[0], a.Length > 1 ? a[1] : "*", n));
+                return Respond(OptionalInt(a, 2, "count", 50).Map(n => PcTools.ListFolders(a[0], a.Length > 1 ? a[1] : "*", n)));
             }),
 
         new("largest", [], "largest <dir> [n]", "Largest files in a folder, recursive.",
             (a, _) =>
             {
                 var dir = a.Length > 0 ? a[0] : ".";
-                var n = OptionalInt(a, 1, "count", 10, out var error);
-                return error is not null ? Fail(error) : Ok(PcTools.GetLargestFiles(dir, n, true));
+                return Respond(OptionalInt(a, 1, "count", 10).Map(n => PcTools.GetLargestFiles(dir, n, true)));
             }),
 
         new("foldersize", ["dirsize"], "foldersize <dir> [n]", "What takes space inside a folder.",
             (a, ct) =>
             {
                 var dir = a.Length > 0 ? a[0] : ".";
-                var n = OptionalInt(a, 1, "count", 20, out var error);
-                return error is not null ? Fail(error) : Ok(PcTools.GetFolderSizes(dir, n, ct));
+                return Respond(OptionalInt(a, 1, "count", 20).Map(n => PcTools.GetFolderSizes(dir, n, ct)));
             }),
 
         new("duplicates", ["dup"], "duplicates <dir> [minMb] [n]", "Duplicate files by content (read-only).",
             (a, ct) =>
             {
                 var dir = a.Length > 0 ? a[0] : ".";
-                var minMb = OptionalInt(a, 1, "minimum size", 1, out var error);
-                if (error is not null)
-                    return Fail(error);
-                var n = OptionalInt(a, 2, "groups", 20, out error);
-                return error is not null ? Fail(error) : Ok(PcTools.FindDuplicateFiles(dir, minMb, n, ct));
+                return Respond(OptionalInt(a, 1, "minimum size", 1)
+                    .Bind(minMb => OptionalInt(a, 2, "groups", 20)
+                        .Map(n => PcTools.FindDuplicateFiles(dir, minMb, n, ct))));
             }),
 
         new("temp", ["tempsize"], "temp", "Space used by temp and cache folders (read-only, deletes nothing).",
@@ -189,8 +168,7 @@ static class Program
             {
                 if (a.Length == 0)
                     return Fail("Missing file.", "read <file> [n]");
-                var n = OptionalInt(a, 1, "characters", 8000, out var error);
-                return error is not null ? Fail(error) : Ok(PcTools.ReadTextFile(a[0], n));
+                return Respond(OptionalInt(a, 1, "characters", 8000).Map(n => PcTools.ReadTextFile(a[0], n)));
             }),
 
         new("hash", [], "hash <file> [algorithm]", "Compute a file hash (MD5, SHA-1, SHA-256, SHA-512).",
@@ -310,15 +288,14 @@ static class Program
             Console.WriteLine($"Aliases: {string.Join(", ", command.Aliases)}");
     }
 
-    private static int OptionalInt(string[] args, int index, string name, int fallback, out string? error)
+    // An optional numeric argument: the fallback when it is absent, a failure when it is not a number.
+    private static Result<int> OptionalInt(string[] args, int index, string name, int fallback)
     {
-        error = null;
         if (index >= args.Length)
             return fallback;
-        if (int.TryParse(args[index], out var value))
-            return value;
-        error = $"'{args[index]}' is not a valid number for {name}.";
-        return 0;
+        return int.TryParse(args[index], out var value)
+            ? value
+            : Result.Fail<int>($"'{args[index]}' is not a valid number for {name}.");
     }
 
     private static int Print(string text)
@@ -338,4 +315,9 @@ static class Program
     private static Task<int> Ok(string text) => Task.FromResult(Print(text));
 
     private static Task<int> Fail(string message, string? usage = null) => Task.FromResult(Error(message, usage));
+
+    // Exit of a command whose arguments went through the Result railway: print the tool's text,
+    // or the first argument error on stderr (exit code 2).
+    private static Task<int> Respond(Result<string> output) =>
+        output.IsSuccess ? Ok(output.Value) : Fail(output.Errors[0].Message);
 }

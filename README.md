@@ -117,3 +117,5 @@ WindowsUtils/            # WinForms app (net10.0-windows)
 ```
 
 Adding a new utility = one new file in `Utilities/` + one line in `MainForm.Utilities`. See [AGENTS.md](AGENTS.md) for conventions and gotchas.
+
+Error handling follows Railway Oriented Programming with [FluentResults](https://github.com/altmann/FluentResults): code that can fail in an expected way returns `Result`/`Result<T>`, steps are chained with `Bind`/`Map`, and only the UI, the AI tool layer (`PcTools.Run`) and the CLI turn the outcome into text. New code is written the same way; the rules are in [AGENTS.md](AGENTS.md#error-handling-railway-oriented-programming).

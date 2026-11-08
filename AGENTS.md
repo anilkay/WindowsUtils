@@ -9,14 +9,14 @@ dotnet build                        # from repo root (solution dir)
 dotnet run --project WindowsUtils   # run the app
 ```
 
-NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`; MCP server: `ModelContextProtocol.AspNetCore` + the `Microsoft.AspNetCore.App` framework reference). `WindowsUtils.Core` depends only on `Microsoft.Extensions.Logging.Abstractions` (for `ILogger`). The WinForms app references `Microsoft.Extensions.Logging` (for `LoggerFactory`).
+NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`; MCP server: `ModelContextProtocol.AspNetCore` + the `Microsoft.AspNetCore.App` framework reference). `WindowsUtils.Core` depends only on `Microsoft.Extensions.Logging.Abstractions` (for `ILogger`) and `FluentResults` (for `Result`/`Result<T>`, see "Error handling: Railway Oriented Programming"); every project gets FluentResults through Core. The WinForms app references `Microsoft.Extensions.Logging` (for `LoggerFactory`).
 
 ## Structure
 
 ```
 WindowsUtils.slnx
 WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
-├── Hashing/FileHasher.cs # file hashing (MD5/SHA-1/SHA-256/SHA-384/SHA-512) + verify
+├── Hashing/FileHasher.cs # file hashing (MD5/SHA-1/SHA-256/SHA-384/SHA-512) + verify; returns Result<T>
 ├── ByteFormatter.cs      # human-readable byte sizes
 ├── IO/FileScanner.cs     # safe file scanning: top-N largest files, folder contents, directory sizes
 ├── IO/DuplicateFinder.cs # duplicate files: group by size, then prefix hash, then SHA-256
@@ -30,7 +30,7 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── SystemInfo/InstalledPrograms.cs # installed programs from the Uninstall keys (HKLM 64/32-bit + HKCU), read-only
 ├── SystemInfo/StartupPrograms.cs # registry Run/RunOnce entries (read-only)
 ├── SystemInfo/LocalUsers.cs # local user accounts via netapi32 NetUserEnum (read-only)
-├── SystemInfo/UserManagement.cs # create/delete local users via netapi32 (needs admin); UI-only, not exposed to AI Chat
+├── SystemInfo/UserManagement.cs # create/delete local users via netapi32 (needs admin), as a Result railway with rollback; UI-only, not exposed to AI Chat
 ├── SystemInfo/RuntimeInstallation.cs # shared record + probe helpers (PATH search, link resolution, version sort) for the runtime detectors
 ├── SystemInfo/JavaDetector.cs # installed Java: JAVA_HOME, vendor registry keys, PATH; reads the "release" file
 ├── SystemInfo/PythonDetector.cs # installed Python: PATH (skips WindowsApps aliases), PEP 514 registry keys, Python install manager (%LOCALAPPDATA%\Python), pyenv-win
@@ -41,9 +41,9 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 └── SystemInfo/NetFrameworkDetector.cs # installed .NET Framework: NDP\v4\Full Release DWORD (4.5-4.8.1) + legacy v3.5/v3.0/v2.0/v1.1 keys
 WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── ChatSession.cs        # agent creation, session, streaming, reasoning-effort retry
-├── PcTools.cs            # read-only PC inspection tools exposed to the agent
-├── ChatSettingsStore.cs  # endpoint/model persistence (%AppData%\WindowsUtils\chat.json)
-├── CredentialStore.cs    # API key in Windows Credential Manager (advapi32), one entry per endpoint host
+├── PcTools.cs            # read-only PC inspection tools exposed to the agent; each tool is a Result railway ending in Run()
+├── ChatSettingsStore.cs  # endpoint/model persistence (%AppData%\WindowsUtils\chat.json); returns Result
+├── CredentialStore.cs    # API key in Windows Credential Manager (advapi32), one entry per endpoint host; Save/Delete return Result
 ├── McpServerHost.cs      # local MCP server (streamable HTTP, loopback): agent as tool + PcTools as MCP tools
 ├── ReasoningEffortChatClient.cs # injects reasoning_effort into requests
 └── ResponseTimeoutChatClient.cs # fails a model call with TimeoutException when the endpoint goes silent
@@ -72,17 +72,31 @@ Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, 
 - **Tools that return private data need the user's permission**: tools that return file contents or environment variable values (`ReadTextFile`, `GetEnvironmentVariable`) are registered as `new ApprovalRequiredAIFunction(...)`. `ChatSession.StreamResponseAsync` stops before running them and asks its `approveToolCall` callback (`ChatControl` shows a Yes/No box, default No, naming the file or variable and the endpoint host); without a callback they are declined. Listing tools (names, sizes) run without asking.
 - **MCP server**: `PcTools.CreateTools()` is the single tool list (function + `NeedsApproval`/`OpenWorld` flags) used by both the chat agent and `McpServerHost` (started/stopped by a button on the AI Chat screen). The MCP path keeps the same approval rule via a gate that asks the `approveToolCall` callback (declines without one) and exposes the agent itself as `ask_windows_utils_agent` (`ChatSession.StreamResponseAsync` with one-shot sessions). It binds loopback only (`http://localhost:5199/mcp`, no silent port fallback), requires a per-start bearer token (`McpServerHost.Token`, shown with a ready `mcp.json` snippet — reconfigure clients after each restart), rejects browser requests whose `Host`/`Origin` is not the server's own loopback origin (403, DNS-rebinding guard), uses the streamable HTTP transport, and needs the ASP.NET Core runtime (comes with the SDK; machines with only the Desktop Runtime can't start the app). Tools are annotated `ReadOnly` + non-`Destructive`; the network tools and the agent are `OpenWorld`.
 
+## Error handling: Railway Oriented Programming
+
+**All new and changed code follows Railway Oriented Programming with [FluentResults](https://github.com/altmann/FluentResults)** (`Result`, `Result<T>`). Every step either stays on the success track or switches to the failure track; steps are chained with `Bind` (next step can fail) and `Map` (next step cannot fail), and the caller looks at the outcome once, at the end.
+
+- **Expected failures are results, not exceptions.** Validation, "not found", access denied, a locked file, a Win32/netapi error code: return `Result.Fail("message")` (the message is shown to the user or model as-is, so word it for them). When the failure comes from a caught exception, keep it: `Result.Fail(new ExceptionalError(ex.Message, ex))`. Catch only the exceptions you expect (`IOException`, `UnauthorizedAccessException`, ...); bugs stay exceptions.
+- **Cancellation is not a failure.** `OperationCanceledException` always propagates; never turn it into a `Result`.
+- **Absence is a value, not a failure.** "Nothing saved yet" is `Result.Ok<T?>(null)` (`ChatSettingsStore.Load`) or a plain `null`/empty list; best-effort probes (runtime detectors, `Wmi.Query`, `FileScanner` with its `ScanError` list) keep their shape.
+- **One exit per boundary.** UI code checks `result.IsFailed` and shows `result.Errors[0].Message`; `PcTools.Run`/`RunAsync` render a tool's `Result<string>` (an `ExceptionalError` reads `Error: ...`, other errors keep their exact wording) and catch any leftover exception; the CLI's `Respond` prints the text or writes the error to stderr with exit code 2.
+- **Keep messages stable.** Converting existing code to a railway must not change the text the user, the model or a CLI script sees.
+- **Not everywhere.** Pure computation, formatting and UI layout code stay plain; a `Result` there only adds noise.
+
 ## Adding a new utility
 
 1. Create `Utilities/MyToolControl.cs : UtilityControl`, build UI in the constructor.
 2. Add one line to `MainForm.Utilities`: `("My Tool", "\uE90F", "One-line description.", () => new MyToolControl()),`
-3. Expose the same capability to AI Chat: add a read-only `[Description]` method to `PcTools` and one line in `PcTools.CreateTools()` (set `NeedsApproval` if it returns file contents, secrets or similar private data). Chat and the MCP server both pick it up automatically.
+3. Expose the same capability to AI Chat: add a read-only `[Description]` method to `PcTools` and one line in `PcTools.CreateTools()` (set `NeedsApproval` if it returns file contents, secrets or similar private data). Chat and the MCP server both pick it up automatically. Write the method as a railway: `=> Run(() => RequireDirectory(dir).Bind(...).Map(Format))`; no `try`/`catch` of its own.
+4. If the Core logic can fail in an expected way, give it a `Result`/`Result<T>` return (see below).
 
 ## Gotchas (learned the hard way)
 
 - **DataGridView + deferred binding**: column auto-generation only happens once the control is parented to a form (gets a `BindingContext`). Since utility controls are constructed *before* being added to the content panel, never read `grid.Columns["X"]` in a constructor with auto-generated columns — it returns null (NRE). Instead set `AutoGenerateColumns = false` and add columns explicitly via `AddBoundColumn(...)` (sets `DataPropertyName`).
 - **Unbound grids** (rows added manually) throw on header-click sorting — call `MakeUnsortable(grid)` after adding columns.
 - **AIFunctionFactory marshals results to `JsonElement` by default** (Microsoft.Extensions.AI 10.x). Over MCP the SDK then serializes that JsonElement a second time, so text arrives quoted with `\n` escapes (`"line1\nline2"`) instead of plain text. Create agent/MCP functions via `PcTools.CreateFunction(...)`, which passes results through unchanged.
+- **FluentResults `Bind` with an `async` lambda is ambiguous** (`Task` and `ValueTask` overloads both match, CS0121). Bind to a non-async lambda that calls an `async Task<Result<T>>` method instead (`RequireHost(host).Bind(h => PingAsync(h, ...))` in `PcTools`).
+- **`Result` can clash with a member name**: a `Form` with a `Result` property (`AddUserWizardForm`) hides the FluentResults type; write `FluentResults.Result.Fail(...)` there.
 - **Shared helpers**: UI grid helpers live in `UtilityControl` (`CreateGrid()`, `AddBoundColumn()`, `MakeUnsortable()`); reusable logic lives in Core (`ByteFormatter`, `FileHasher`, `FileScanner`). `UtilityControl.FormatBytes()` just delegates to Core.
 
 ## Patterns in use

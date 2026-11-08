@@ -91,14 +91,14 @@ public class LocalUsersControl : UtilityControl
             return;
 
         var result = UserManagement.DeleteUser(name);
-        if (result.Success)
+        if (result.IsSuccess)
         {
             _note.Text = $"Account '{name}' deleted.";
             LoadAccounts();
         }
         else
         {
-            _note.Text = $"Could not delete '{name}': {result.Error}";
+            _note.Text = $"Could not delete '{name}': {result.Errors[0].Message}";
         }
     }
 
