@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Security.Cryptography;
+using FluentResults;
 
 namespace WindowsUtils.Core.Hashing;
 
@@ -9,50 +10,21 @@ namespace WindowsUtils.Core.Hashing;
 /// </summary>
 public static class FileHasher
 {
-    public static IReadOnlyDictionary<HashAlgorithmName, string> ComputeHashes(
+    /// <summary>Hashes the file with every selected algorithm. Fails (instead of throwing) when no or an
+    /// unsupported algorithm is selected, or the file cannot be read; the read error is kept as an
+    /// <see cref="ExceptionalError"/>. Cancellation still throws <see cref="OperationCanceledException"/>.</summary>
+    public static Result<IReadOnlyDictionary<HashAlgorithmName, string>> ComputeHashes(
         string path,
         IEnumerable<HashAlgorithmName> algorithms,
         CancellationToken cancellationToken = default)
     {
         var selected = algorithms.Distinct().ToList();
-        if (selected.Count == 0)
-            throw new ArgumentException("Select at least one hash algorithm.", nameof(algorithms));
-
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan);
-        var instances = new List<(HashAlgorithmName Algorithm, IncrementalHash Instance)>(selected.Count);
-        try
-        {
-            foreach (var algorithm in selected)
-                instances.Add((algorithm, Create(algorithm)));
-
-            var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
-            try
-            {
-                int read;
-                while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    foreach (var (_, instance) in instances)
-                        instance.AppendData(buffer, 0, read);
-                }
-
-                return instances.ToDictionary(
-                    x => x.Algorithm,
-                    x => Convert.ToHexStringLower(x.Instance.GetHashAndReset()));
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
-        }
-        finally
-        {
-            foreach (var (_, instance) in instances)
-                instance.Dispose();
-        }
+        return Result.FailIf(selected.Count == 0, "Select at least one hash algorithm.")
+            .Bind(() => Result.Merge([.. selected.Select(RequireSupported)]))
+            .Bind(() => HashFile(path, selected, cancellationToken));
     }
 
-    public static Task<IReadOnlyDictionary<HashAlgorithmName, string>> ComputeHashesAsync(
+    public static Task<Result<IReadOnlyDictionary<HashAlgorithmName, string>>> ComputeHashesAsync(
         string path,
         IEnumerable<HashAlgorithmName> algorithms,
         CancellationToken cancellationToken = default) =>
@@ -73,14 +45,47 @@ public static class FileHasher
         return null;
     }
 
-    private static IncrementalHash Create(HashAlgorithmName name)
+    private static Result<IReadOnlyDictionary<HashAlgorithmName, string>> HashFile(
+        string path, List<HashAlgorithmName> selected, CancellationToken cancellationToken)
     {
-        if (name == HashAlgorithmName.MD5 ||
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan);
+            var instances = selected.Select(a => (Algorithm: a, Instance: IncrementalHash.CreateHash(a))).ToList();
+            var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
+            try
+            {
+                int read;
+                while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    foreach (var (_, instance) in instances)
+                        instance.AppendData(buffer, 0, read);
+                }
+
+                return Result.Ok<IReadOnlyDictionary<HashAlgorithmName, string>>(instances.ToDictionary(
+                    x => x.Algorithm,
+                    x => Convert.ToHexStringLower(x.Instance.GetHashAndReset())));
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+                foreach (var (_, instance) in instances)
+                    instance.Dispose();
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Result.Fail(new ExceptionalError(ex.Message, ex));
+        }
+    }
+
+    private static Result RequireSupported(HashAlgorithmName name) =>
+        Result.OkIf(
+            name == HashAlgorithmName.MD5 ||
             name == HashAlgorithmName.SHA1 ||
             name == HashAlgorithmName.SHA256 ||
             name == HashAlgorithmName.SHA384 ||
-            name == HashAlgorithmName.SHA512)
-            return IncrementalHash.CreateHash(name);
-        throw new NotSupportedException($"Unsupported hash algorithm: '{name.Name}'.");
-    }
+            name == HashAlgorithmName.SHA512,
+            $"Unsupported hash algorithm: '{name.Name}'.");
 }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FluentResults;
 using Microsoft.Extensions.Logging;
 using WindowsUtils.AI;
 using WindowsUtils.Core.Logging;
@@ -252,26 +253,25 @@ public class ChatControl : UtilityControl
 
     private void LoadPersistedSettings()
     {
-        try
-        {
-            var settings = ChatSettingsStore.Load();
-            if (settings is not null)
-            {
-                if (!string.IsNullOrWhiteSpace(settings.Endpoint))
-                    _endpointBox.Text = settings.Endpoint;
-                if (!string.IsNullOrWhiteSpace(settings.Model))
-                    _modelBox.Text = settings.Model;
-                if (!string.IsNullOrWhiteSpace(settings.ReasoningEffort) && _reasoningBox.Items.Contains(settings.ReasoningEffort))
-                    _reasoningBox.SelectedItem = settings.ReasoningEffort;
-            }
-            // Fires only when the text differs; cover the saved-endpoint-no-change case directly.
-            OnEndpointChanged();
-        }
-        catch (Exception ex)
+        var loaded = ChatSettingsStore.Load();
+        if (loaded.IsFailed)
         {
             // Corrupt settings file: ignore and start fresh.
-            Log.LogWarning(ex, "Could not load persisted chat settings; starting fresh.");
+            Log.LogWarning(loaded.Errors.OfType<ExceptionalError>().FirstOrDefault()?.Exception,
+                "Could not load persisted chat settings; starting fresh. {Error}", loaded.Errors[0].Message);
+            return;
         }
+        if (loaded.Value is { } settings)
+        {
+            if (!string.IsNullOrWhiteSpace(settings.Endpoint))
+                _endpointBox.Text = settings.Endpoint;
+            if (!string.IsNullOrWhiteSpace(settings.Model))
+                _modelBox.Text = settings.Model;
+            if (!string.IsNullOrWhiteSpace(settings.ReasoningEffort) && _reasoningBox.Items.Contains(settings.ReasoningEffort))
+                _reasoningBox.SelectedItem = settings.ReasoningEffort;
+        }
+        // Fires only when the text differs; cover the saved-endpoint-no-change case directly.
+        OnEndpointChanged();
     }
 
     /// <summary>The key in the box follows the endpoint's host: on a host change, that host's
@@ -304,33 +304,22 @@ public class ChatControl : UtilityControl
 
     private void SaveSettings()
     {
-        try
-        {
-            ChatSettingsStore.Save(new ChatSettings(
+        var key = _apiKeyBox.Text.Trim();
+        var host = EndpointHost();
+        var saved = ChatSettingsStore.Save(new ChatSettings(
                 _endpointBox.Text.Trim(),
                 _modelBox.Text.Trim(),
-                _reasoningBox.SelectedItem as string));
-            var key = _apiKeyBox.Text.Trim();
-            var host = EndpointHost();
-            if (key.Length > 0 && host.Length > 0)
-                CredentialStore.Save(key, host);
-        }
-        catch (Exception ex)
-        {
-            _statusLabel.Text = $"Could not save settings: {ex.Message}";
-        }
+                _reasoningBox.SelectedItem as string))
+            .Bind(() => key.Length > 0 && host.Length > 0 ? CredentialStore.Save(key, host) : Result.Ok());
+        if (saved.IsFailed)
+            _statusLabel.Text = $"Could not save settings: {saved.Errors[0].Message}";
     }
 
     private void ForgetSettings()
     {
-        try
-        {
-            ChatSettingsStore.Delete();
-        }
-        catch
-        {
-        }
-        CredentialStore.Delete(EndpointHost());
+        // Best effort, as before: nothing to report when there was nothing saved or it is already gone.
+        _ = ChatSettingsStore.Delete();
+        _ = CredentialStore.Delete(EndpointHost());
         _apiKeyBox.Clear();
         _chatSession = null;
         _sessionCacheKey = null;

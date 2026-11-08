@@ -28,10 +28,13 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 | **Firewall Ports** | TCP/UDP ports opened by enabled inbound Windows Firewall rules |
 | **File Hash Calculator** | MD5 / SHA-1 / SHA-256 / SHA-512 with hash verification |
 | **Environment Variables** | Browse User / Machine / Process variables |
+| **Battery and Power** | Charge, charging state, battery health (full vs design capacity), cycle count and the active power plan |
+| **Installed Programs** | Installed programs with version, publisher, size and install date; sort by any column, filter by name |
 | **Startup Programs** | Programs registered to start with Windows (registry Run keys) |
 | **Local Users** | Local user accounts and their status; add or delete accounts (needs Administrator) |
 | **Folder Size Analyzer** | Sizes of everything inside a folder, sorted largest first |
 | **Largest Files** | Scans drives/folders for the top 100 largest files; open in Explorer or delete to Recycle Bin |
+| **Temp Cleaner** | Sizes of temp, browser/thumbnail cache, error report and crash dump folders; cleans the ones you tick after a confirmation (files older than 24 h only) |
 | **AI Chat** | Chat with an AI agent that can inspect this PC via read-only tools (needs an API key) |
 
 ## Requirements
@@ -114,3 +117,5 @@ WindowsUtils/            # WinForms app (net10.0-windows)
 ```
 
 Adding a new utility = one new file in `Utilities/` + one line in `MainForm.Utilities`. See [AGENTS.md](AGENTS.md) for conventions and gotchas.
+
+Error handling follows Railway Oriented Programming with [FluentResults](https://github.com/altmann/FluentResults): code that can fail in an expected way returns `Result`/`Result<T>`, steps are chained with `Bind`/`Map`, and only the UI, the AI tool layer (`PcTools.Run`) and the CLI turn the outcome into text. New code is written the same way; the rules are in [AGENTS.md](AGENTS.md#error-handling-railway-oriented-programming).
