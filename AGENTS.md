@@ -21,7 +21,7 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── IO/FileScanner.cs     # safe file scanning: top-N largest files, folder contents, directory sizes
 ├── IO/DuplicateFinder.cs # duplicate files: group by size, then prefix hash, then SHA-256
 ├── IO/RecycleBin.cs      # send to Recycle Bin via shell, asks before permanent delete
-├── IO/TempCleaner.cs     # temp/cache cleanup over a fixed list of safe folders: measure, then delete files older than 24 h
+├── IO/TempCleaner.cs     # temp/cache cleanup over a fixed list of safe folders: measure, then delete files older than 24 h; Clean returns Result and deletes by handle
 ├── Net/NetworkInfo.cs    # network adapters + ping
 ├── Net/TcpTraceroute.cs  # TCP traceroute: TTL-stepped SYN probes + ICMP hop mapping (needs admin)
 ├── Net/FirewallRules.cs  # enabled inbound allow rules with TCP/UDP ports via HNetCfg.FwPolicy2 COM (read-only)
@@ -105,6 +105,7 @@ Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, 
 - File enumeration: `EnumerationOptions { IgnoreInaccessible = true, AttributesToSkip = System | ReparsePoint }` — avoids access-denied crashes, junction loops, and OneDrive placeholder downloads.
 - Top-N file selection: `PriorityQueue<T, long>` min-heap capped at N (constant memory).
 - File deletion: `RecycleBin.SendToRecycleBin(path, owner)` (Core) after a Yes/No confirmation. It passes `FOF_WANTNUKEWARNING`, so files that cannot be recycled (too large, network/USB drive) prompt before permanent deletion; it returns false if the user keeps the file. Do **not** use `Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(..., UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin)`: it silently deletes such files permanently.
+- Bulk deletion in folders other users can write to (Temp Cleaner, which may run elevated): never delete by path after a scan. A folder in the path can be swapped for a junction between the scan and the delete, turning an elevated run into "delete any file". `TempCleaner.DeleteIfOld` shows the pattern: open with `FILE_FLAG_OPEN_REPARSE_POINT`, check `GetFinalPathNameByHandle` is still inside the root, check the age on that handle, then delete through it (`SetFileInformationByHandle` + `FileDispositionInfo`).
 - AI tool paths are untrusted (the model picks them): pass them through `PcTools.ToLocalPath` / `ResolveDirectory` before any file-system call. Only paths on known-local drives are allowed: UNC and device paths would make Windows send NTLM credentials to arbitrary hosts, and mapped network drives are rejected by the root's drive type (a subst drive reports itself as Fixed and cannot be told apart).
 - Registry access: read-only, wrapped in try/catch (access denied is expected).
 - Open file in Explorer: `Process.Start(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), $"/select,\"{path}\"")` — always the full path, so a planted `explorer.exe` next to the app's exe cannot be started instead.

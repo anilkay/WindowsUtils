@@ -130,7 +130,10 @@ public class TempCleanerControl : UtilityControl
             return;
         }
 
-        var lines = selected.Select(s => $"  {s.Location.Name}: {FormatBytes(s.CleanableBytes)} ({s.CleanableFiles:N0} files)");
+        // The real folders are listed, so a surprising one (a TEMP pointing somewhere odd) shows up before anything is deleted.
+        var lines = selected.Select(s => $"  {s.Location.Name}: {FormatBytes(s.CleanableBytes)} ({s.CleanableFiles:N0} files)\n"
+            + string.Join("\n", s.Location.Roots.Take(3).Select(r => $"      {r}"))
+            + (s.Location.Roots.Count > 3 ? $"\n      ...and {s.Location.Roots.Count - 3} more folders" : ""));
         var message = $"Permanently delete {FormatBytes(selected.Sum(s => s.CleanableBytes))} of temporary files?\n\n"
             + string.Join("\n", lines)
             + "\n\nThe files are not moved to the Recycle Bin. Files in use are skipped.";
@@ -144,6 +147,7 @@ public class TempCleanerControl : UtilityControl
         var token = _cts.Token;
         SetBusy(true);
         long deleted = 0, freed = 0, skipped = 0;
+        var refused = new List<string>();
         var cancelled = false;
         try
         {
@@ -151,9 +155,14 @@ public class TempCleanerControl : UtilityControl
             {
                 _statusLabel.Text = $"Cleaning {size.Location.Name}...";
                 var result = await Task.Run(() => TempCleaner.Clean(size.Location, token), token);
-                deleted += result.DeletedFiles;
-                freed += result.FreedBytes;
-                skipped += result.SkippedFiles;
+                if (result.IsFailed)
+                {
+                    refused.Add(result.Errors[0].Message);
+                    continue;
+                }
+                deleted += result.Value.DeletedFiles;
+                freed += result.Value.FreedBytes;
+                skipped += result.Value.SkippedFiles;
             }
         }
         catch (OperationCanceledException)
@@ -170,6 +179,9 @@ public class TempCleanerControl : UtilityControl
         }
 
         await ScanAsync();
+        if (refused.Count > 0)
+            MessageBox.Show("Some locations were not cleaned:\n\n" + string.Join("\n", refused), "Clean Temp Files",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
         if (cancelled)
         {
             _statusLabel.Text = "Cleaning cancelled; some files may already be deleted (sizes above are current). " + _statusLabel.Text;

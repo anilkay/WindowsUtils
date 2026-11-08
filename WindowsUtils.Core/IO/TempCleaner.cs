@@ -1,4 +1,8 @@
+using System.ComponentModel;
 using System.IO.Enumeration;
+using System.Runtime.InteropServices;
+using FluentResults;
+using Microsoft.Win32.SafeHandles;
 
 namespace WindowsUtils.Core.IO;
 
@@ -9,14 +13,17 @@ public sealed record CleanupLocation(string Name, string Description, IReadOnlyL
 /// <summary>Size of a <see cref="CleanupLocation"/>: everything in it, and the part old enough to be cleaned.</summary>
 public sealed record CleanupSize(CleanupLocation Location, long Files, long Bytes, long CleanableFiles, long CleanableBytes);
 
-/// <summary>Outcome of <see cref="TempCleaner.Clean"/>. Skipped files were in use, read-only or access denied.</summary>
+/// <summary>Outcome of <see cref="TempCleaner.Clean"/>. Skipped files were recent, in use, read-only,
+/// access denied, or no longer inside the location's folder.</summary>
 public sealed record CleanupResult(long DeletedFiles, long FreedBytes, long SkippedFiles);
 
 /// <summary>
 /// Temp and cache cleaner limited to a fixed list of safe locations (temp folders, browser and thumbnail
-/// caches, error reports, crash dumps). Paths never come from the caller, only from <see cref="GetLocations"/>.
-/// Only files untouched for <see cref="MinimumAge"/> are deleted, so files a running program just wrote stay;
-/// files in use are skipped. Reparse points (junctions, symlinks) are never followed. Deletion is permanent.
+/// caches, error reports, crash dumps). <see cref="Clean"/> only accepts folders that <see cref="GetLocations"/>
+/// returns right now. Only files untouched for <see cref="MinimumAge"/> are deleted, so files a running program
+/// just wrote stay; files in use are skipped. Reparse points (junctions, symlinks) are never followed: each file
+/// is opened, checked to still lie inside its cleanup folder, and deleted through that same handle.
+/// Deletion is permanent.
 /// </summary>
 public static class TempCleaner
 {
@@ -29,10 +36,13 @@ public static class TempCleaner
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        var userTemp = Path.GetTempPath();
 
         var candidates = new List<CleanupLocation>
         {
-            new("User Temp", "Your temporary files (%TEMP%).", [Path.GetTempPath()]),
+            // %TEMP% is a user setting: it is only cleaned when it looks like a temp folder, so a TEMP
+            // pointing at Documents or D:\Projects can never get its files deleted.
+            new("User Temp", "Your temporary files (%TEMP%).", IsTempFolder(userTemp, local) ? [userTemp] : []),
             new("Windows Temp", "System temporary files (needs Administrator to clean most of them).", [Path.Combine(windows, "Temp")]),
             new("Thumbnail Cache", "Explorer thumbnail cache; rebuilt automatically.",
                 [Path.Combine(local, @"Microsoft\Windows\Explorer")], "thumbcache_*.db", Recursive: false),
@@ -56,7 +66,7 @@ public static class TempCleaner
     {
         var cutoff = DateTime.UtcNow - MinimumAge;
         long files = 0, bytes = 0, cleanableFiles = 0, cleanableBytes = 0;
-        foreach (var file in EnumerateFiles(location))
+        foreach (var file in EnumerateFiles(location.Roots, location.Pattern, location.Recursive))
         {
             cancellationToken.ThrowIfCancellationRequested();
             files++;
@@ -72,79 +82,161 @@ public static class TempCleaner
 
     /// <summary>
     /// Permanently deletes the files in <paramref name="location"/> older than <see cref="MinimumAge"/>,
-    /// then removes subfolders left empty. Files that cannot be deleted are counted as skipped.
+    /// then removes subfolders left empty. Files that cannot be deleted are counted as skipped. Fails when
+    /// none of the location's folders is a current, safe cleanup folder (then nothing is touched).
     /// </summary>
-    public static CleanupResult Clean(CleanupLocation location, CancellationToken cancellationToken = default)
+    public static Result<CleanupResult> Clean(CleanupLocation location, CancellationToken cancellationToken = default)
     {
-        // The roots are checked again here, not only in GetLocations: a caller may build its own
-        // location, and a folder measured earlier may have been swapped for a junction since.
-        location = location with { Roots = location.Roots.Where(IsSafeRoot).ToList() };
+        if (!OperatingSystem.IsWindows())
+            return Result.Fail("Temp cleaning is only available on Windows.");
+        return ResolveRoots(location)
+            .Map(roots => CleanRoots(roots, location, cancellationToken));
+    }
+
+    // A folder measured earlier may have been swapped for a junction since, and a caller may build its
+    // own location: only roots that GetLocations returns right now (which re-runs IsSafeRoot) are used,
+    // each pinned to its final path so every file can be checked against it.
+    private static Result<IReadOnlyList<CleanupRoot>> ResolveRoots(CleanupLocation location)
+    {
+        var known = GetLocations().SelectMany(l => l.Roots).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var resolved = location.Roots.Select(root => RequireKnownRoot(root, known).Bind(ResolveRoot)).ToList();
+        var roots = resolved.Where(r => r.IsSuccess).Select(r => r.Value).ToList();
+        if (roots.Count > 0)
+            return roots;
+        return Result.Fail($"{location.Name}: nothing was cleaned. "
+            + (resolved.Count > 0 ? resolved[0].Errors[0].Message : "It has no folders."));
+    }
+
+    private static Result<string> RequireKnownRoot(string root, IReadOnlySet<string> known) =>
+        known.Contains(root) ? root : Result.Fail<string>($"'{root}' is not a safe cleanup folder.");
+
+    private static Result<CleanupRoot> ResolveRoot(string root)
+    {
+        // Read attributes only: the root itself is never deleted, and a non-admin may lack Delete on it.
+        using var handle = Open(root, FileReadAttributes, FileFlagBackupSemantics, directory: true);
+        if (handle.IsInvalid)
+            return Win32Failure($"Could not open '{root}'");
+        return FinalPath(handle).Map(final => new CleanupRoot(root, final));
+    }
+
+    private static CleanupResult CleanRoots(IReadOnlyList<CleanupRoot> roots, CleanupLocation location, CancellationToken cancellationToken)
+    {
         var cutoff = DateTime.UtcNow - MinimumAge;
         long deleted = 0, freed = 0, skipped = 0;
-        // Listed first so deleting does not disturb the enumeration.
-        var candidates = new List<CacheFile>();
-        foreach (var file in EnumerateFiles(location))
+        foreach (var root in roots)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (file.ModifiedUtc < cutoff)
-                candidates.Add(file);
-        }
-
-        foreach (var file in candidates)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (TryDeleteIfOld(file.Path, cutoff) is long bytes)
+            // Listed first so deleting does not disturb the enumeration.
+            var candidates = new List<CacheFile>();
+            foreach (var file in EnumerateFiles([root.Path], location.Pattern, location.Recursive))
             {
-                deleted++;
-                freed += bytes;
+                cancellationToken.ThrowIfCancellationRequested();
+                if (file.ModifiedUtc < cutoff)
+                    candidates.Add(file);
             }
-            else
-            {
-                skipped++;
-            }
-        }
 
-        if (location.Recursive)
-        {
-            foreach (var root in location.Roots)
+            foreach (var file in candidates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = DeleteIfOld(file.Path, root, cutoff, directory: false);
+                if (result.IsSuccess)
+                {
+                    deleted++;
+                    freed += result.Value;
+                }
+                else
+                {
+                    skipped++;
+                }
+            }
+
+            if (location.Recursive)
                 RemoveEmptyFolders(root, cutoff, cancellationToken);
         }
         return new CleanupResult(deleted, freed, skipped);
     }
 
-    // The age is read again from an open handle that lets no one else write the file (sharing
-    // Delete only), so a program that rewrote it after the scan keeps it. Deleting through that
-    // sharing mode marks the file; Windows removes it when the handle closes. Returns the freed
-    // size, or null when the file is recent, in use, read-only or access is denied.
-    private static long? TryDeleteIfOld(string path, DateTime cutoffUtc)
+    // One file or folder, as a railway on a single handle: open it without following a final link →
+    // its real path must still be inside the root (a folder above it may have been swapped for a
+    // junction since the scan) → old enough, read from the handle → mark for deletion on that handle.
+    // Files are opened sharing Delete only, so no program can rewrite one between the age check and the
+    // deletion; Windows removes it when the handle closes. Returns the freed size.
+    private static Result<long> DeleteIfOld(string path, CleanupRoot root, DateTime cutoffUtc, bool directory)
+    {
+        using var handle = Open(path, Delete | FileReadAttributes, FileFlagOpenReparsePoint | (directory ? FileFlagBackupSemantics : 0), directory);
+        if (handle.IsInvalid)
+            return Win32Failure($"Could not open '{path}'");
+        return FinalPath(handle)
+            .Bind(final => RequireInside(final, root))
+            .Bind(() => RequireOld(handle, cutoffUtc, directory))
+            .Bind(size => MarkForDeletion(handle).ToResult(size));
+    }
+
+    private static Result RequireInside(string finalPath, CleanupRoot root) =>
+        Result.OkIf(finalPath.StartsWith(root.FinalPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase),
+            () => $"'{finalPath}' is outside '{root.FinalPath}'.");
+
+    // Files go by their last write, folders by their creation (a folder's write time changes whenever
+    // a file in it is deleted). A folder frees no space of its own.
+    private static Result<long> RequireOld(SafeFileHandle handle, DateTime cutoffUtc, bool directory)
     {
         try
         {
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Delete);
-            if (File.GetLastWriteTimeUtc(stream.SafeFileHandle) >= cutoffUtc)
-                return null;
-            var size = stream.Length;
-            File.Delete(path);
-            return size;
+            var time = directory ? File.GetCreationTimeUtc(handle) : File.GetLastWriteTimeUtc(handle);
+            if (time >= cutoffUtc)
+                return Result.Fail<long>("Changed too recently.");
+            return directory ? 0 : RandomAccess.GetLength(handle);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return null;
+            return Result.Fail<long>(new ExceptionalError(ex.Message, ex));
         }
     }
 
+    // Fails for read-only files and for folders that are not empty, which is what keeps them.
+    private static Result MarkForDeletion(SafeFileHandle handle)
+    {
+        var info = new FileDispositionInfo { DeleteFile = true };
+        return SetFileInformationByHandle(handle, FileDispositionInfoClass, ref info, (uint)Marshal.SizeOf<FileDispositionInfo>())
+            ? Result.Ok()
+            : Win32Failure("Could not delete");
+    }
+
+    private static Result<string> FinalPath(SafeFileHandle handle)
+    {
+        var buffer = new char[512];
+        var length = GetFinalPathNameByHandle(handle, buffer, (uint)buffer.Length, 0);
+        if (length > buffer.Length) // too small: length is the size needed
+        {
+            buffer = new char[length];
+            length = GetFinalPathNameByHandle(handle, buffer, (uint)buffer.Length, 0);
+        }
+        if (length == 0 || length >= buffer.Length)
+            return Win32Failure("Could not resolve the real path");
+        var path = new string(buffer, 0, (int)length);
+        return path.StartsWith(@"\\?\", StringComparison.Ordinal) && !path.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)
+            ? path[4..]
+            : Result.Fail<string>($"'{path}' is not on a local drive.");
+    }
+
+    private static Result Win32Failure(string what)
+    {
+        var exception = new Win32Exception(Marshal.GetLastPInvokeError());
+        return Result.Fail(new ExceptionalError($"{what}: {exception.Message}", exception));
+    }
+
+    private readonly record struct CleanupRoot(string Path, string FinalPath);
+
     private readonly record struct CacheFile(string Path, long Size, DateTime ModifiedUtc);
 
-    private static IEnumerable<CacheFile> EnumerateFiles(CleanupLocation location)
+    private static IEnumerable<CacheFile> EnumerateFiles(IEnumerable<string> roots, string pattern, bool recursive)
     {
-        foreach (var root in location.Roots)
+        foreach (var root in roots)
         {
             if (!Directory.Exists(root))
                 continue;
-            var pattern = location.Pattern;
             var files = new FileSystemEnumerable<CacheFile>(root,
                 (ref FileSystemEntry entry) => new CacheFile(entry.ToFullPath(), entry.Length, entry.LastWriteTimeUtc.UtcDateTime),
-                CreateOptions(location.Recursive))
+                CreateOptions(recursive))
             {
                 ShouldIncludePredicate = (ref FileSystemEntry entry) =>
                     !entry.IsDirectory && FileSystemName.MatchesSimpleExpression(pattern, entry.FileName),
@@ -179,15 +271,16 @@ public static class TempCleaner
     }
 
     // Deepest first, so a parent emptied by removing its children goes too. The root itself stays.
-    // Folders created recently are kept for the same reason recent files are.
-    private static void RemoveEmptyFolders(string root, DateTime cutoffUtc, CancellationToken cancellationToken)
+    // Folders created recently are kept for the same reason recent files are; folders that are not
+    // empty fail to be marked for deletion and stay as well.
+    private static void RemoveEmptyFolders(CleanupRoot root, DateTime cutoffUtc, CancellationToken cancellationToken)
     {
-        if (!Directory.Exists(root))
+        if (!Directory.Exists(root.Path))
             return;
         var folders = new List<string>();
         try
         {
-            foreach (var folder in Directory.EnumerateDirectories(root, "*", CreateOptions(recursive: true)))
+            foreach (var folder in Directory.EnumerateDirectories(root.Path, "*", CreateOptions(recursive: true)))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 folders.Add(folder);
@@ -201,15 +294,7 @@ public static class TempCleaner
         foreach (var folder in folders)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            try
-            {
-                if (Directory.GetCreationTimeUtc(folder) < cutoffUtc && !Directory.EnumerateFileSystemEntries(folder).Any())
-                    Directory.Delete(folder, recursive: false);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // in use or access denied - keep it
-            }
+            _ = DeleteIfOld(folder, root, cutoffUtc, directory: true); // in use, not empty or recent: kept
         }
     }
 
@@ -246,6 +331,29 @@ public static class TempCleaner
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return [];
+        }
+    }
+
+    // %TEMP% counts as a temp folder when it is %LOCALAPPDATA%\Temp (or a folder below it, as in
+    // remote sessions) or its own name is Temp/Tmp, e.g. D:\Temp.
+    private static bool IsTempFolder(string path, string localAppData)
+    {
+        try
+        {
+            var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+            if (localAppData.Length > 0)
+            {
+                var localTemp = Path.Combine(localAppData, "Temp");
+                if (full.Equals(localTemp, StringComparison.OrdinalIgnoreCase)
+                    || full.StartsWith(localTemp + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return Path.GetFileName(full) is { } name
+                && (name.Equals("Temp", StringComparison.OrdinalIgnoreCase) || name.Equals("Tmp", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
 
@@ -290,4 +398,41 @@ public static class TempCleaner
             return false;
         }
     }
+
+    // ---- Win32: open without following a final link, read the real path, delete by handle ----
+
+    private const uint Delete = 0x00010000;
+    private const uint FileReadAttributes = 0x0080;
+    private const uint FileShareRead = 0x1;
+    private const uint FileShareWrite = 0x2;
+    private const uint FileShareDelete = 0x4;
+    private const uint OpenExisting = 3;
+    private const uint FileFlagBackupSemantics = 0x02000000;
+    private const uint FileFlagOpenReparsePoint = 0x00200000;
+    private const int FileDispositionInfoClass = 4;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FileDispositionInfo
+    {
+        [MarshalAs(UnmanagedType.U1)]
+        public bool DeleteFile;
+    }
+
+    // Folders may be open elsewhere (Explorer), so they share everything; files share Delete only.
+    private static SafeFileHandle Open(string path, uint access, uint flags, bool directory) =>
+        CreateFile(path, access,
+            directory ? FileShareRead | FileShareWrite | FileShareDelete : FileShareDelete,
+            IntPtr.Zero, OpenExisting, flags, IntPtr.Zero);
+
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFile(string fileName, uint desiredAccess, uint shareMode,
+        IntPtr securityAttributes, uint creationDisposition, uint flagsAndAttributes, IntPtr templateFile);
+
+    [DllImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetFinalPathNameByHandle(SafeFileHandle file, [Out] char[] filePath, uint filePathLength, uint flags);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetFileInformationByHandle(SafeFileHandle file, int fileInformationClass,
+        ref FileDispositionInfo fileInformation, uint bufferSize);
 }
