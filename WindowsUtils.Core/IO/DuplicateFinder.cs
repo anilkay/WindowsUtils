@@ -123,15 +123,10 @@ public static class DuplicateFinder
                 cancellationToken.ThrowIfCancellationRequested();
                 done++;
                 Report(DuplicateScanPhase.Hashing, done, total, file.FullPath);
-                string hash;
-                try
-                {
-                    hash = FileHasher.ComputeHashes(file.FullPath, [HashAlgorithmName.SHA256], cancellationToken)[HashAlgorithmName.SHA256];
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    continue;
-                }
+                var hashes = FileHasher.ComputeHashes(file.FullPath, [HashAlgorithmName.SHA256], cancellationToken);
+                if (hashes.IsFailed)
+                    continue; // unreadable now (locked, deleted, access denied): skip it
+                var hash = hashes.Value[HashAlgorithmName.SHA256];
                 if (!byHash.TryGetValue(hash, out var list))
                     byHash[hash] = list = [];
                 list.Add(file);

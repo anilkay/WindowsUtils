@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using FluentResults;
 
 namespace WindowsUtils.Core.SystemInfo;
 
@@ -21,9 +22,6 @@ public sealed record NewLocalUser(
         + $"{nameof(PasswordNeverExpires)}: {PasswordNeverExpires}, {nameof(DisablePasswordChange)}: {DisablePasswordChange}, "
         + $"{nameof(IsAdmin)}: {IsAdmin}, {nameof(Password)}: ***";
 }
-
-/// <summary>Result of creating a local user: success, or the exact Windows error text.</summary>
-public sealed record CreateResult(bool Success, string? Error);
 
 /// <summary>
 /// Creates local user accounts via netapi32 (NetUserAdd level 2 + NetLocalGroupAddMember).
@@ -76,39 +74,37 @@ public static class UserManagement
     [DllImport("netapi32.dll", CharSet = CharSet.Unicode)]
     private static extern int NetUserDel(string? serverName, string user);
 
-    public static CreateResult DeleteUser(string name)
+    /// <summary>Deletes a local user. Fails with the exact Windows error text.</summary>
+    public static Result DeleteUser(string name) => Guard(() =>
+        Result.FailIf(string.IsNullOrWhiteSpace(name), "No user selected.")
+            .Bind(() => NetResult(NetUserDel(null, name))));
+
+    /// <summary>Creates a local user as one railway: validate → must not exist yet → NetUserAdd →
+    /// add to Users/Administrators. Fails with the exact Windows error text; a failure after the
+    /// account was created rolls it back.</summary>
+    public static Result AddUser(NewLocalUser user) => Guard(() =>
+        Validate(user)
+            .Bind(() => ValidateNotExists(user.Name))
+            .Bind(() => CreateAccount(user))
+            .Bind(() => AddToBuiltinGroup(user)));
+
+    // Unexpected exceptions (P/Invoke, SID translation, ...) end on the failure track too.
+    private static Result Guard(Func<Result> action)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(name))
-                return new CreateResult(false, "No user selected.");
-            var rc = NetUserDel(null, name);
-            return rc == 0 ? new CreateResult(true, null) : new CreateResult(false, Win32Message(rc));
+            return action();
         }
         catch (Exception ex)
         {
-            return new CreateResult(false, ex.Message);
+            return Result.Fail(new ExceptionalError(ex.Message, ex));
         }
     }
 
-    public static CreateResult AddUser(NewLocalUser user)
-    {
-        try
-        {
-            return AddUserCore(user);
-        }
-        catch (Exception ex)
-        {
-            return new CreateResult(false, ex.Message);
-        }
-    }
+    private static Result NetResult(int rc) => Result.OkIf(rc == 0, () => Win32Message(rc));
 
-    private static CreateResult AddUserCore(NewLocalUser user)
+    private static Result CreateAccount(NewLocalUser user)
     {
-        var error = Validate(user) ?? ValidateNotExists(user.Name);
-        if (error is not null)
-            return new CreateResult(false, error);
-
         // Priv=1 (USER_PRIV_USER) puts the account in "Users"; an account with no
         // group is unusable, so explicit group membership is added below.
         var info = new UserInfo2
@@ -131,72 +127,80 @@ public static class UserManagement
             AcctExpires = -1,
             MaxStorage = -1,
         };
+        return NetResult(NetUserAdd(null, 2, ref info, out _));
+    }
 
-        var rc = NetUserAdd(null, 2, ref info, out _);
-        if (rc != 0)
-            return new CreateResult(false, Win32Message(rc));
+    // Runs after NetUserAdd: on failure the account is rolled back so a half-created
+    // account (no membership -> unusable) is not left behind.
+    private static Result AddToBuiltinGroup(NewLocalUser user)
+    {
+        var result = ResolveMembership(user)
+            .Bind(m => AddMember(m.GroupName, m.Sid));
+        if (result.IsFailed)
+            NetUserDel(null, user.Name);
+        return result;
+    }
 
-        IntPtr sid;
-        string groupName;
+    private static Result<(string GroupName, byte[] Sid)> ResolveMembership(NewLocalUser user)
+    {
         try
         {
-            groupName = BuiltinGroupName(user.IsAdmin
+            var groupName = BuiltinGroupName(user.IsAdmin
                 ? System.Security.Principal.WellKnownSidType.BuiltinAdministratorsSid
                 : System.Security.Principal.WellKnownSidType.BuiltinUsersSid);
-            sid = GetAccountSid(user.Name);
+            return (groupName, GetAccountSid(user.Name));
         }
         catch (Exception ex)
         {
-            // Roll back so a half-created account (no membership -> unusable) is not left behind.
-            NetUserDel(null, user.Name);
-            return new CreateResult(false, $"Account rolled back: could not resolve the group or account SID ({ex.Message}).");
+            return Result.Fail(new ExceptionalError(
+                $"Account rolled back: could not resolve the group or account SID ({ex.Message}).", ex));
         }
+    }
+
+    private static Result AddMember(string groupName, byte[] sid)
+    {
+        var buffer = Marshal.AllocHGlobal(sid.Length);
+        int rc;
         try
         {
-            rc = NetLocalGroupAddMember(null, groupName, sid);
+            Marshal.Copy(sid, 0, buffer, sid.Length);
+            rc = NetLocalGroupAddMember(null, groupName, buffer);
         }
         finally
         {
-            Marshal.FreeHGlobal(sid);
+            Marshal.FreeHGlobal(buffer);
         }
-        if (rc != 0)
-        {
-            // Roll back so a half-created account (no membership -> unusable) is not left behind.
-            NetUserDel(null, user.Name);
-            return new CreateResult(false, $"Account rolled back: adding it to '{groupName}' failed ({Win32Message(rc)}).");
-        }
-
-        return new CreateResult(true, null);
+        return Result.OkIf(rc == 0, () => $"Account rolled back: adding it to '{groupName}' failed ({Win32Message(rc)}).");
     }
 
-    private static string? Validate(NewLocalUser user)
+    private static Result Validate(NewLocalUser user)
     {
         if (string.IsNullOrWhiteSpace(user.Name))
-            return "Enter a user name.";
+            return Result.Fail("Enter a user name.");
         if (user.Name.Length > 20)
-            return "The user name cannot be longer than 20 characters.";
+            return Result.Fail("The user name cannot be longer than 20 characters.");
         if (user.Name.Any(InvalidNameChar))
-            return "The user name contains characters that are not allowed:  \" / \\ [ ] : ; | < > = , + * ? @";
+            return Result.Fail("The user name contains characters that are not allowed:  \" / \\ [ ] : ; | < > = , + * ? @");
         if (user.Password.Length < 8)
-            return "The password must be at least 8 characters (Windows default policy).";
-        return null;
+            return Result.Fail("The password must be at least 8 characters (Windows default policy).");
+        return Result.Ok();
     }
 
     private static bool InvalidNameChar(char c) =>
         "\"/\\[]:;|=,+*?<>@".Contains(c) || char.IsControl(c);
 
-    private static string? ValidateNotExists(string name)
+    private static Result ValidateNotExists(string name)
     {
         try
         {
             if (LocalUsers.GetAccounts().Any(a => a.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-                return $"A user named '{name}' already exists.";
+                return Result.Fail($"A user named '{name}' already exists.");
         }
         catch (Exception)
         {
             // NetUserEnum failure must not block creation - NetUserAdd reports duplicates anyway.
         }
-        return null;
+        return Result.Ok();
     }
 
     /// <summary>Built-in group names are localized (e.g. "Yöneticiler"), so resolve them from the well-known SID.</summary>
@@ -207,8 +211,8 @@ public static class UserManagement
         return full[(full.IndexOf('\\') + 1)..];
     }
 
-    /// <summary>Resolves the account SID. Caller frees the returned buffer with Marshal.FreeHGlobal.</summary>
-    private static IntPtr GetAccountSid(string name)
+    /// <summary>Resolves the account SID in its binary form.</summary>
+    private static byte[] GetAccountSid(string name)
     {
         // NTAccount.Translate wraps LookupAccountName correctly (in/out size params);
         // a hand-rolled P/Invoke of it is easy to get subtly wrong.
@@ -219,9 +223,7 @@ public static class UserManagement
 
         var bytes = new byte[sid.BinaryLength];
         sid.GetBinaryForm(bytes, 0);
-        var buffer = Marshal.AllocHGlobal(bytes.Length);
-        Marshal.Copy(bytes, 0, buffer, bytes.Length);
-        return buffer;
+        return bytes;
     }
 
     private static string Win32Message(int rc) => rc == ErrorAccessDenied

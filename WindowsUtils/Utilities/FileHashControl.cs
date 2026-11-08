@@ -147,7 +147,13 @@ public class FileHashControl : UtilityControl
         _computeButton.Text = "Computing...";
         try
         {
-            var hashes = await FileHasher.ComputeHashesAsync(path, selected, token);
+            var result = await FileHasher.ComputeHashesAsync(path, selected, token);
+            if (result.IsFailed)
+            {
+                MessageBox.Show($"Failed to hash file: {result.Errors[0].Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            var hashes = result.Value;
             _md5Box.Text = hashes.TryGetValue(HashAlgorithmName.MD5, out var md5) ? md5 : "";
             _sha1Box.Text = hashes.TryGetValue(HashAlgorithmName.SHA1, out var sha1) ? sha1 : "";
             _sha256Box.Text = hashes.TryGetValue(HashAlgorithmName.SHA256, out var sha256) ? sha256 : "";

@@ -146,8 +146,10 @@ public class AddUserWizardForm : Form
         Task.Run(() => UserManagement.AddUser(user))
             .ContinueWith(t =>
             {
-                var result = t.IsFaulted ? new CreateResult(false, t.Exception?.GetBaseException().Message) : t.Result;
-                if (result.Success)
+                var result = t.IsFaulted
+                    ? FluentResults.Result.Fail(t.Exception?.GetBaseException().Message ?? "Unknown error.")
+                    : t.Result;
+                if (result.IsSuccess)
                 {
                     // The account exists; only its name is read by the caller, so the password
                     // does not need to live on in the dialog's result.
@@ -160,7 +162,7 @@ public class AddUserWizardForm : Form
                 {
                     _createButton.Enabled = true;
                     status.ForeColor = Theme.Danger;
-                    status.Text = result.Error ?? "Unknown error.";
+                    status.Text = result.Errors[0].Message;
                 }
             }, TaskScheduler.FromCurrentSynchronizationContext());
     }

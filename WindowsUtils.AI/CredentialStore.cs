@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using FluentResults;
 
 namespace WindowsUtils.AI;
 
@@ -11,6 +12,7 @@ public static class CredentialStore
     private const string TargetPrefix = "WindowsUtils_AIChat_ApiKey";
     private const int Generic = 1;
     private const int LocalMachine = 2;
+    private const int ErrorNotFound = 1168;
 
     private static string Target(string? host) =>
         string.IsNullOrWhiteSpace(host) ? TargetPrefix : $"{TargetPrefix}:{host.Trim().ToLowerInvariant()}";
@@ -44,14 +46,12 @@ public static class CredentialStore
     [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CredDelete(string target, int type, int flags);
 
-    /// <summary>Saves the key for an endpoint's host. Throws when the host is unknown: an
+    /// <summary>Saves the key for an endpoint's host. Fails when the host is unknown: an
     /// unbound key could later be sent to whatever endpoint happens to be typed next.</summary>
-    public static void Save(string secret, string host)
-    {
-        if (string.IsNullOrWhiteSpace(host))
-            throw new ArgumentException("An API key can only be saved together with the endpoint host it belongs to.", nameof(host));
-        Write(Target(host), secret);
-    }
+    public static Result Save(string secret, string host) =>
+        Result.FailIf(string.IsNullOrWhiteSpace(host),
+                "An API key can only be saved together with the endpoint host it belongs to.")
+            .Bind(() => Write(Target(host), secret));
 
     /// <summary>Reads the key saved for this endpoint's host — never another host's. A stored-but
     /// never-host-bound key (old shape) is migrated to this host on the first read.</summary>
@@ -65,22 +65,16 @@ public static class CredentialStore
         value = Read(TargetPrefix);
         if (value is null)
             return null;
-        try
-        {
-            Write(Target(host), value);
-            DeleteTarget(TargetPrefix);
-        }
-        catch
-        {
-            // Best effort: if the migration fails, the legacy copy stays and is still returned.
-        }
+        // Best effort: if the migration fails, the legacy copy stays and is still returned.
+        _ = Write(Target(host), value).Bind(() => DeleteTarget(TargetPrefix));
         return value;
     }
 
-    /// <summary>Deletes the key saved for this endpoint's host; an unknown host clears the legacy copy.</summary>
-    public static void Delete(string host) => DeleteTarget(Target(host));
+    /// <summary>Deletes the key saved for this endpoint's host; an unknown host clears the legacy copy.
+    /// Nothing saved counts as success.</summary>
+    public static Result Delete(string host) => DeleteTarget(Target(host));
 
-    private static void Write(string target, string secret)
+    private static Result Write(string target, string secret)
     {
         var bytes = System.Text.Encoding.Unicode.GetBytes(secret);
         var blob = Marshal.AllocCoTaskMem(bytes.Length);
@@ -96,8 +90,7 @@ public static class CredentialStore
                 CredentialBlob = blob,
                 Persist = LocalMachine,
             };
-            if (!CredWrite(ref credential, 0))
-                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+            return CredWrite(ref credential, 0) ? Result.Ok() : LastWin32Error();
         }
         finally
         {
@@ -127,5 +120,12 @@ public static class CredentialStore
         }
     }
 
-    private static void DeleteTarget(string target) => CredDelete(target, Generic, 0);
+    private static Result DeleteTarget(string target) =>
+        CredDelete(target, Generic, 0) || Marshal.GetLastPInvokeError() == ErrorNotFound ? Result.Ok() : LastWin32Error();
+
+    private static Result LastWin32Error()
+    {
+        var exception = new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        return Result.Fail(new ExceptionalError(exception.Message, exception));
+    }
 }
