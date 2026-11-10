@@ -1,6 +1,6 @@
 # WindowsUtils
 
-A Windows Forms app (.NET 10) that bundles small, handy Windows utilities in a single window with sidebar navigation. Reusable logic (hashing, file scanning, formatting, logging) lives in the `WindowsUtils.Core` class library, usable from any .NET app.
+A Windows Forms app (.NET 11) that bundles small, handy Windows utilities in a single window with sidebar navigation. Reusable logic (hashing, file scanning, formatting, logging) lives in the `WindowsUtils.Core` class library, usable from any .NET app.
 
 The UI follows the Windows 11 look: it switches between light and dark with your Windows setting and uses your Windows accent color.
 
@@ -40,7 +40,7 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 ## Requirements
 
 - Windows
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) to build from source (not needed for the [release download](#download))
+- [.NET 11 SDK](https://dotnet.microsoft.com/download) to build from source (not needed for the [release download](#download))
 
 ## Logging
 
@@ -67,7 +67,7 @@ Run `wutils help` to list every command. All commands are read-only; nothing is 
 
 ## Single-file build
 
-Both options produce one `WindowsUtils.exe` in `WindowsUtils\bin\Release\net10.0-windows\win-x64\publish\`. For ARM64 Windows, use `-r win-arm64` instead (the output folder changes to match).
+Both options produce one `WindowsUtils.exe` in `WindowsUtils\bin\Release\net11.0-windows\win-x64\publish\`. For ARM64 Windows, use `-r win-arm64` instead (the output folder changes to match).
 
 ### Option A: Self-contained (~50 MB, recommended)
 
@@ -82,7 +82,7 @@ dotnet publish WindowsUtils -c Release -r win-x64 --self-contained `
 
 ### Option B: Framework-dependent (~0.2 MB)
 
-Much smaller, but the target machine must already have the [.NET 10 runtime](https://dotnet.microsoft.com/download) installed.
+Much smaller, but the target machine must already have the [.NET 11 runtime](https://dotnet.microsoft.com/download) installed.
 
 ```powershell
 dotnet publish WindowsUtils -c Release -r win-x64 --self-contained=false `
@@ -94,20 +94,20 @@ dotnet publish WindowsUtils -c Release -r win-x64 --self-contained=false `
 ## Project structure
 
 ```
-WindowsUtils.Core/       # reusable class library (net10.0): hashing, scanning, logging
+WindowsUtils.Core/       # reusable class library (net11.0): hashing, scanning, logging
 ├── Hashing/FileHasher.cs # file hashing + verification
 ├── ByteFormatter.cs      # human-readable byte sizes
 ├── Logging/AppLog.cs     # process-wide logger accessor + %AppData%\WindowsUtils\logs path
 ├── Logging/FileLoggerProvider.cs # ILoggerProvider that writes a daily rolling log file
 └── IO/FileScanner.cs     # top-N largest files, directory sizes
-WindowsUtils.AI/         # AI chat logic (net10.0): agent session, PC tools, settings, credentials
+WindowsUtils.AI/         # AI chat logic (net11.0): agent session, PC tools, settings, credentials
 ├── ChatSession.cs        # agent creation, streaming, reasoning-effort handling
 ├── PcTools.cs            # read-only PC inspection tools for the agent
 ├── ChatSettingsStore.cs  # persisted endpoint/model settings
 └── CredentialStore.cs    # API key in Windows Credential Manager
-WindowsUtils.Cli/         # console CLI (net10.0, "wutils"): read-only tools as subcommands
+WindowsUtils.Cli/         # console CLI (net11.0, "wutils"): read-only tools as subcommands
 └── Program.cs            # command table, help, arg parsing; wraps PcTools
-WindowsUtils/            # WinForms app (net10.0-windows)
+WindowsUtils/            # WinForms app (net11.0-windows)
 ├── Program.cs            # entry point
 ├── MainForm.cs           # shell: sidebar navigation + content host
 ├── Theme.cs              # Windows 11 style colors, fonts, light/dark mode, accent color

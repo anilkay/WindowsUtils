@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <!-- .NET 11 runtime async: async methods are compiled for the runtime instead of
+         a compiler-generated state machine. Delete this line to go back. -->
+    <Features>$(Features);runtime-async=on</Features>
+  </PropertyGroup>
+</Project>
