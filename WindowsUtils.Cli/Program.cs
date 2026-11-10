@@ -163,6 +163,10 @@ static class Program
         new("temp", ["tempsize"], "temp", "Space used by temp and cache folders (read-only, deletes nothing).",
             (_, ct) => Ok(PcTools.GetTempCleanupSizes(ct))),
 
+        new("build", ["buildoutputs"], "build [dir] [n]", "bin/obj build folders of .NET projects (read-only, deletes nothing).",
+            (a, ct) => Respond(OptionalInt(a, 1, "count", 30)
+                .Map(n => PcTools.GetDotNetBuildOutputs(a.Length > 0 ? a[0] : "repos", n, ct)))),
+
         new("read", [], "read <file> [n]", "Read a text file (first n characters).",
             (a, _) =>
             {

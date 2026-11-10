@@ -65,6 +65,7 @@ public static class PcTools
         new(CreateFunction(new Func<string, int, int, CancellationToken, string>(FindDuplicateFiles)), false),
         new(CreateFunction(new Func<string, int, CancellationToken, string>(GetFolderSizes)), false),
         new(CreateFunction(new Func<CancellationToken, string>(GetTempCleanupSizes)), false),
+        new(CreateFunction(new Func<string, int, CancellationToken, string>(GetDotNetBuildOutputs)), false),
         new(CreateFunction(new Func<string>(GetStartupPrograms)), false),
         new(CreateFunction(new Func<string>(GetBatteryReport)), false),
         new(CreateFunction(new Func<string, string, int, string>(GetInstalledPrograms)), false),
@@ -316,6 +317,34 @@ public static class PcTools
         return Lines(lines);
     });
 
+    [Description("Finds the build output folders (bin and obj) of .NET projects under a source folder and reports how much "
+        + "space they use. A folder only counts when it sits next to a .csproj, .fsproj, .vbproj or .vcxproj file. "
+        + "Read-only: it never deletes anything; deleting is done by the user on the Build Cleaner screen.")]
+    public static string GetDotNetBuildOutputs(
+        [Description("Folder that holds your projects or repositories (e.g. C:\\Users\\me\\source\\repos) or a shortcut: repos.")] string directory = "repos",
+        [Description("Maximum folders to list (1-100).")] int maxResults = 30,
+        CancellationToken cancellationToken = default) => Run(() =>
+        RequireDirectory(directory)
+            .Bind(resolved => BuildArtifactCleaner.Scan(resolved, cancellationToken: cancellationToken))
+            .Map(scan => DescribeBuildOutputs(scan, Math.Clamp(maxResults, 1, 100))));
+
+    private static string DescribeBuildOutputs(BuildArtifactScan scan, int maxResults)
+    {
+        if (scan.Artifacts.Count == 0)
+            return $"No bin or obj folders found under {scan.Root} ({scan.ProjectsScanned:N0} projects).";
+        var lines = new List<string>
+        {
+            $"{scan.Artifacts.Count:N0} bin/obj folders in {scan.ProjectsScanned:N0} projects under {scan.Root}: "
+                + $"{ByteFormatter.FormatBytes(scan.Bytes)} in {scan.Files:N0} files."
+                + (scan.Artifacts.Count > maxResults ? $" Showing the largest {maxResults}." : ""),
+        };
+        lines.AddRange(scan.Artifacts.Take(maxResults).Select(a =>
+            $"{ByteFormatter.FormatBytes(a.Bytes),-10} {a.Folder}"));
+        if (scan.Errors.Count > 0)
+            lines.Add($"Could not read some of the folder: {scan.Errors[0].Message}");
+        return Lines(lines);
+    }
+
     [Description("Battery and power report: power source (AC or battery), charge %, charging state, time remaining, "
         + "battery saver, the active power plan, and per battery its design and full-charge capacity, health % (wear), "
         + "cycle count and chemistry. Read-only.")]
@@ -491,6 +520,7 @@ public static class PcTools
             "documents" or "mydocuments" or "my documents" => Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
             "desktop" => Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
             "downloads" => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"),
+            "repos" or "sourcerepos" => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "source", "repos"),
             "userprofile" or "home" => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             _ => ToLocalPath(key),
         };
