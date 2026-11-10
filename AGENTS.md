@@ -1,6 +1,6 @@
 # WindowsUtils
 
-A Windows Forms app (.NET 10, `net10.0-windows`) that bundles small Windows utilities in one window with sidebar navigation.
+A Windows Forms app (.NET 11, `net11.0-windows`) that bundles small Windows utilities in one window with sidebar navigation.
 
 ## Build & run
 
@@ -9,13 +9,13 @@ dotnet build                        # from repo root (solution dir)
 dotnet run --project WindowsUtils   # run the app
 ```
 
-NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`; MCP server: `ModelContextProtocol.AspNetCore` + the `Microsoft.AspNetCore.App` framework reference). `WindowsUtils.Core` depends only on `Microsoft.Extensions.Logging.Abstractions` (for `ILogger`) and `FluentResults` (for `Result`/`Result<T>`, see "Error handling: Railway Oriented Programming"); every project gets FluentResults through Core. The WinForms app references `Microsoft.Extensions.Logging` (for `LoggerFactory`).
+NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`; MCP server: `ModelContextProtocol.AspNetCore` + the `Microsoft.AspNetCore.App` framework reference). `WindowsUtils.Core` depends only on `FluentResults` (for `Result`/`Result<T>`, see "Error handling: Railway Oriented Programming"); every project gets FluentResults through Core (ILogger comes with the .NET 11 shared framework, so no Microsoft.Extensions.Logging.Abstractions reference; adding it back gives NU1510). The WinForms app references `Microsoft.Extensions.Logging` (for `LoggerFactory`).
 
 ## Structure
 
 ```
 WindowsUtils.slnx
-WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
+WindowsUtils.Core/       # class library (net11.0, no WinForms): reusable logic
 ├── Hashing/FileHasher.cs # file hashing (MD5/SHA-1/SHA-256/SHA-384/SHA-512) + verify; returns Result<T>
 ├── ByteFormatter.cs      # human-readable byte sizes
 ├── IO/FileScanner.cs     # safe file scanning: top-N largest files, folder contents, directory sizes
@@ -39,7 +39,7 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── SystemInfo/Wmi.cs     # read-only WQL query helper over the WbemScripting COM object (no System.Management package)
 ├── SystemInfo/WindowsFeatures.cs # optional Windows features (Telnet, IIS, SMB1, Hyper-V, WSL, ...) via WMI COM, read-only
 └── SystemInfo/NetFrameworkDetector.cs # installed .NET Framework: NDP\v4\Full Release DWORD (4.5-4.8.1) + legacy v3.5/v3.0/v2.0/v1.1 keys
-WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
+WindowsUtils.AI/         # class library (net11.0, no WinForms): AI chat logic
 ├── ChatSession.cs        # agent creation, session, streaming, reasoning-effort retry
 ├── PcTools.cs            # read-only PC inspection tools exposed to the agent; each tool is a Result railway ending in Run()
 ├── ChatSettingsStore.cs  # endpoint/model persistence (%AppData%\WindowsUtils\chat.json); returns Result
@@ -47,9 +47,9 @@ WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
 ├── McpServerHost.cs      # local MCP server (streamable HTTP, loopback): agent as tool + PcTools as MCP tools
 ├── ReasoningEffortChatClient.cs # injects reasoning_effort into requests
 └── ResponseTimeoutChatClient.cs # fails a model call with TimeoutException when the endpoint goes silent
-WindowsUtils.Cli/         # console CLI (net10.0, assembly "wutils"), references AI: read-only tools as subcommands
+WindowsUtils.Cli/         # console CLI (net11.0, assembly "wutils"), references AI: read-only tools as subcommands
 └── Program.cs            # command table, help, arg parsing; wraps the public PcTools methods
-WindowsUtils/            # WinForms app (net10.0-windows), references Core
+WindowsUtils/            # WinForms app (net11.0-windows), references Core
 ├── Program.cs            # entry point, launches MainForm
 ├── MainForm.cs           # shell: owner-drawn sidebar nav + page header + content panel
 ├── Theme.cs              # Windows 11 style colors/fonts, light/dark, accent, button/grid styling
@@ -66,7 +66,7 @@ Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, 
 - **Navigation**: `MainForm.Utilities` is a `(string Name, string Icon, string Description, Func<UserControl> Factory)[]` tuple array (`Icon` is a Segoe Fluent Icons glyph such as `"\uE770"`; `Description` is shown under the page title). Controls are created lazily on first navigation, styled with `Theme.Apply`, and cached (state survives tab switches).
 - **Theming**: `Theme.cs` holds the Windows 11 style palette (light/dark follows Windows via `Application.SetColorMode(SystemColorMode.System)`, accent from the Windows accent color) and fonts. Use `Theme.*` colors instead of `SystemColors`/named colors; mark a screen's main action button with `.AsAccent()`. Buttons are owner-painted by `Theme.Apply`, grids by `CreateGrid()`.
 - **Docking order**: WinForms docks controls in reverse z-order. Add the `Dock=Fill` control **first**, then `Top`/`Bottom` panels, so panels dock correctly.
-- **Reusable logic goes to Core**: UI-agnostic code (hashing, formatting, scanning) lives in `WindowsUtils.Core` (`net10.0`, no WinForms references) so console apps/services can reuse it. The WinForms project holds UI only.
+- **Reusable logic goes to Core**: UI-agnostic code (hashing, formatting, scanning) lives in `WindowsUtils.Core` (`net11.0`, no WinForms references) so console apps/services can reuse it. The WinForms project holds UI only.
 - **AI logic goes to WindowsUtils.AI**: agent setup, session/streaming, tools, settings and credential storage live there. `ChatControl` is a thin UI shell that only calls `ChatSession` / `ChatSettingsStore` / `CredentialStore`.
 - **Every screen is also an AI tool**: whatever a utility screen can show must also be available to AI Chat as a tool in `PcTools` (registered in `PcTools.CreateTools()`). Tools call the same Core logic as the screen, are read-only (no delete, write or registry changes; destructive actions stay in the UI behind a confirmation), pass model-chosen paths through `ResolveDirectory` / `ToLocalPath`, and cap their output. Long scans take a `CancellationToken` parameter (AIFunctionFactory binds it and hides it from the model).
 - **Tools that return private data need the user's permission**: tools that return file contents or environment variable values (`ReadTextFile`, `GetEnvironmentVariable`) are registered as `new ApprovalRequiredAIFunction(...)`. `ChatSession.StreamResponseAsync` stops before running them and asks its `approveToolCall` callback (`ChatControl` shows a Yes/No box, default No, naming the file or variable and the endpoint host); without a callback they are declined. Listing tools (names, sizes) run without asking.
