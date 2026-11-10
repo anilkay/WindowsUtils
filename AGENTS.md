@@ -9,7 +9,9 @@ dotnet build                        # from repo root (solution dir)
 dotnet run --project WindowsUtils   # run the app
 ```
 
-NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`; MCP server: `ModelContextProtocol.AspNetCore` + the `Microsoft.AspNetCore.App` framework reference). `WindowsUtils.Core` depends only on `FluentResults` (for `Result`/`Result<T>`, see "Error handling: Railway Oriented Programming"); every project gets FluentResults through Core (ILogger comes with the .NET 11 shared framework, so no Microsoft.Extensions.Logging.Abstractions reference; adding it back gives NU1510). The WinForms app references `Microsoft.Extensions.Logging` (for `LoggerFactory`).
+NuGet packages live in `WindowsUtils.AI` (Microsoft Agent Framework: `Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI` + `OpenAI` + `Microsoft.Extensions.AI`; MCP server: `ModelContextProtocol.AspNetCore` + the `Microsoft.AspNetCore.App` framework reference). `WindowsUtils.Core` depends only on `FluentResults` (for `Result`/`Result<T>`, see "Error handling: Railway Oriented Programming"); every project gets FluentResults through Core (`ILogger` comes with the .NET 11 shared framework, so there is no `Microsoft.Extensions.Logging.Abstractions` reference; adding it back gives NU1510). The WinForms app references `Microsoft.Extensions.Logging` (for `LoggerFactory`).
+
+**Runtime async** (.NET 11) is on for every project via `<Features>$(Features);runtime-async=on</Features>` in the root `Directory.Build.props`: async methods compile to runtime-async methods instead of state machines (async iterators and `async void` handlers/lambdas still get one). Delete that line to go back to the old behaviour.
 
 ## Structure
 
