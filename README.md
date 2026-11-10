@@ -35,6 +35,7 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 | **Folder Size Analyzer** | Sizes of everything inside a folder, sorted largest first |
 | **Largest Files** | Scans drives/folders for the top 100 largest files; open in Explorer or delete to Recycle Bin |
 | **Temp Cleaner** | Sizes of temp, browser/thumbnail cache, error report and crash dump folders; cleans the ones you tick after a confirmation (files older than 24 h only) |
+| **Build Cleaner** | Finds `bin` and `obj` folders next to .NET project files under your repos (default `%USERPROFILE%\source\repos`); deletes the ones you tick after a confirmation |
 | **AI Chat** | Chat with an AI agent that can inspect this PC via read-only tools (needs an API key) |
 
 ## Requirements

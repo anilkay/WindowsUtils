@@ -19,6 +19,7 @@ public class MainForm : Form
         ("Largest Files", "\uE8A5", "Find the biggest files on your drives.", () => new LargestFilesControl()),
         ("Duplicate Files", "\uE8C8", "Find identical files and free up space.", () => new DuplicateFilesControl()),
         ("Temp Cleaner", "\uE74D", "See and clean temporary and cache files.", () => new TempCleanerControl()),
+        ("Build Cleaner", "\uE90F", "Delete bin and obj build output folders in your .NET projects.", () => new BuildCleanerControl()),
         ("System Information", "\uE770", "Operating system, hardware and memory at a glance.", () => new SystemInfoControl()),
         ("Disk Info", "\uEDA2", "Capacity and free space for every drive.", () => new DiskInfoControl()),
         ("Network Info", "\uE968", "Network adapters, addresses and a quick ping.", () => new NetworkInfoControl()),
