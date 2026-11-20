@@ -1,5 +1,6 @@
 using System.Data;
 using WindowsUtils.Core.SystemInfo;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -7,17 +8,17 @@ public class EventLogControl : UtilityControl
 {
     private static readonly (string Text, int Hours)[] Periods =
     [
-        ("Last hour", 1),
-        ("Last 24 hours", 24),
-        ("Last 7 days", 24 * 7),
-        ("Last 30 days", 24 * 30),
+        (L.T("Last hour"), 1),
+        (L.T("Last 24 hours"), 24),
+        (L.T("Last 7 days"), 24 * 7),
+        (L.T("Last 30 days"), 24 * 30),
     ];
 
     private readonly DataGridView _grid;
     private readonly DataTable _table = new();
     private readonly ComboBox _periodBox = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
-    private readonly CheckBox _includeWarnings = new() { Text = "Include warnings", AutoSize = true, Checked = true };
-    private readonly Button _refreshButton = new() { Text = "Refresh", AutoSize = true };
+    private readonly CheckBox _includeWarnings = new() { Text = L.T("Include warnings"), AutoSize = true, Checked = true };
+    private readonly Button _refreshButton = new() { Text = L.T("Refresh"), AutoSize = true };
     private readonly Label _statusLabel = new();
     private readonly TextBox _messageBox = new()
     {
@@ -69,24 +70,24 @@ public class EventLogControl : UtilityControl
 
         _grid = CreateGrid();
         _grid.AutoGenerateColumns = false;
-        AddBoundColumn(_grid, "Level", "Level").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        AddBoundColumn(_grid, "Log", "Log").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        var source = AddBoundColumn(_grid, "Source", "Source");
+        AddBoundColumn(_grid, "Level", L.T("Level")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        AddBoundColumn(_grid, "Log", L.T("Log")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        var source = AddBoundColumn(_grid, "Source", L.T("Source"));
         source.FillWeight = 30;
         source.MinimumWidth = 150;
-        AddBoundColumn(_grid, "Count", "Count").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        var latest = AddBoundColumn(_grid, "Latest", "Last Seen");
+        AddBoundColumn(_grid, "Count", L.T("Count")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        var latest = AddBoundColumn(_grid, "Latest", L.T("Last Seen"));
         latest.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
         latest.DefaultCellStyle.Format = "g";
-        var ids = AddBoundColumn(_grid, "EventIds", "Event IDs");
+        var ids = AddBoundColumn(_grid, "EventIds", L.T("Event IDs"));
         ids.FillWeight = 14;
         ids.MinimumWidth = 80;
-        AddBoundColumn(_grid, "Message", "Latest Message").FillWeight = 56;
+        AddBoundColumn(_grid, "Message", L.T("Latest Message")).FillWeight = 56;
         _grid.DataSource = _table;
         _grid.CellFormatting += (_, e) =>
         {
             if (e.ColumnIndex >= 0 && _grid.Columns[e.ColumnIndex].DataPropertyName == "Level"
-                && e.Value is "Critical" or "Error")
+                && e.Value is string level && (level == L.V("Critical") || level == L.V("Error")))
             {
                 e.CellStyle!.ForeColor = Theme.Danger;
             }
@@ -108,7 +109,7 @@ public class EventLogControl : UtilityControl
         var hours = Periods[Math.Max(0, _periodBox.SelectedIndex)].Hours;
         var includeWarnings = _includeWarnings.Checked;
         _refreshButton.Enabled = false;
-        _statusLabel.Text = "Reading the System and Application logs...";
+        _statusLabel.Text = L.T("Reading the System and Application logs...");
         try
         {
             var result = await Task.Run(() => EventLogSummary.Get(hours, includeWarnings, cts.Token), cts.Token);
@@ -121,9 +122,9 @@ public class EventLogControl : UtilityControl
             _table.BeginLoadData();
             _table.Rows.Clear();
             foreach (var g in groups)
-                _table.Rows.Add(g.Level, g.Log, g.Source, g.Count, g.Latest, g.EventIds, g.LatestMessage);
+                _table.Rows.Add(L.V(g.Level), L.V(g.Log), g.Source, g.Count, g.Latest, g.EventIds, g.LatestMessage);
             _table.EndLoadData();
-            _statusLabel.Text = $"{groups.Sum(g => g.Count)} event(s) from {groups.Count} source(s).";
+            _statusLabel.Text = L.F("{0} event(s) from {1} source(s).", groups.Sum(g => g.Count), groups.Count);
         }
         catch (OperationCanceledException)
         {

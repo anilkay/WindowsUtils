@@ -1,5 +1,6 @@
 using System.Data;
 using WindowsUtils.Core.SystemInfo;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -7,9 +8,9 @@ public class UpdateHistoryControl : UtilityControl
 {
     private readonly DataGridView _grid;
     private readonly DataTable _table = new();
-    private readonly TextBox _filterBox = new() { PlaceholderText = "Filter by title or KB...", Width = 260 };
-    private readonly CheckBox _failedOnly = new() { Text = "Failed only", AutoSize = true };
-    private readonly Button _refreshButton = new() { Text = "Refresh", AutoSize = true };
+    private readonly TextBox _filterBox = new() { PlaceholderText = L.T("Filter by title or KB..."), Width = 260 };
+    private readonly CheckBox _failedOnly = new() { Text = L.T("Failed only"), AutoSize = true };
+    private readonly Button _refreshButton = new() { Text = L.T("Refresh"), AutoSize = true };
     private readonly Label _statusLabel = new();
 
     public UpdateHistoryControl()
@@ -48,16 +49,16 @@ public class UpdateHistoryControl : UtilityControl
 
         _grid = CreateGrid();
         _grid.AutoGenerateColumns = false;
-        var date = AddBoundColumn(_grid, "Date", "Date");
+        var date = AddBoundColumn(_grid, "Date", L.T("Date"));
         date.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
         date.DefaultCellStyle.Format = "g";
-        var title = AddBoundColumn(_grid, "Title", "Update");
+        var title = AddBoundColumn(_grid, "Title", L.T("Update"));
         title.FillWeight = 70;
         title.MinimumWidth = 240;
         AddBoundColumn(_grid, "Kb", "KB").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        AddBoundColumn(_grid, "Operation", "Operation").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        AddBoundColumn(_grid, "Result", "Result").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        AddBoundColumn(_grid, "ErrorCode", "Error Code").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        AddBoundColumn(_grid, "Operation", L.T("Operation")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        AddBoundColumn(_grid, "Result", L.T("Result")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        AddBoundColumn(_grid, "ErrorCode", L.T("Error Code")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
         _grid.DataSource = _table;
         _grid.CellFormatting += (_, e) =>
         {
@@ -72,7 +73,7 @@ public class UpdateHistoryControl : UtilityControl
         {
             Dock = DockStyle.Bottom,
             Height = 26,
-            Text = "Read-only (Windows Update Agent history, newest first, up to 500 entries).",
+            Text = L.T("Read-only (Windows Update Agent history, newest first, up to 500 entries)."),
             TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(6, 0, 0, 0),
         };
@@ -87,7 +88,7 @@ public class UpdateHistoryControl : UtilityControl
     private async Task LoadAsync()
     {
         _refreshButton.Enabled = false;
-        _statusLabel.Text = "Reading Windows Update history...";
+        _statusLabel.Text = L.T("Reading Windows Update history...");
         try
         {
             var result = await Task.Run(() => WindowsUpdateHistory.Get(500));
@@ -100,11 +101,11 @@ public class UpdateHistoryControl : UtilityControl
             _table.BeginLoadData();
             _table.Rows.Clear();
             foreach (var e in entries)
-                _table.Rows.Add(e.Date, e.Title, e.KbArticle, e.Operation, e.ResultText, e.Succeeded, e.ErrorCode);
+                _table.Rows.Add(e.Date, e.Title, e.KbArticle, L.V(e.Operation), L.V(e.ResultText), e.Succeeded, e.ErrorCode);
             _table.EndLoadData();
             _table.DefaultView.Sort = "Date DESC";
             ApplyFilter();
-            _statusLabel.Text = $"{entries.Count} entries, {entries.Count(e => !e.Succeeded)} failed.";
+            _statusLabel.Text = L.F("{0} entries, {1} failed.", entries.Count, entries.Count(e => !e.Succeeded));
         }
         finally
         {

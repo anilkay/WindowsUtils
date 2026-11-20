@@ -1,0 +1,1387 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <!--
+    Turkish UI text. name = the English text passed to L.T / L.F (composite format placeholders
+    {0}, {1:N0} ... must be kept), or "value:<English>" for values Core returns in English (L.V).
+  -->
+  <data name="Folder Size Analyzer" xml:space="preserve">
+    <value>Klasör Boyutu Analizi</value>
+  </data>
+  <data name="See what takes up space inside a folder." xml:space="preserve">
+    <value>Bir klasörde neyin yer kapladığını görün.</value>
+  </data>
+  <data name="Largest Files" xml:space="preserve">
+    <value>En Büyük Dosyalar</value>
+  </data>
+  <data name="Find the biggest files on your drives." xml:space="preserve">
+    <value>Sürücülerinizdeki en büyük dosyaları bulun.</value>
+  </data>
+  <data name="Duplicate Files" xml:space="preserve">
+    <value>Yinelenen Dosyalar</value>
+  </data>
+  <data name="Find identical files and free up space." xml:space="preserve">
+    <value>Aynı içerikli dosyaları bulun ve yer açın.</value>
+  </data>
+  <data name="Temp Cleaner" xml:space="preserve">
+    <value>Geçici Dosyalar</value>
+  </data>
+  <data name="See and clean temporary and cache files." xml:space="preserve">
+    <value>Geçici ve önbellek dosyalarını görün ve temizleyin.</value>
+  </data>
+  <data name="System Information" xml:space="preserve">
+    <value>Sistem Bilgisi</value>
+  </data>
+  <data name="Operating system, hardware and memory at a glance." xml:space="preserve">
+    <value>İşletim sistemi, donanım ve bellek bir bakışta.</value>
+  </data>
+  <data name="Update History" xml:space="preserve">
+    <value>Güncelleme Geçmişi</value>
+  </data>
+  <data name="Installed, failed and removed Windows updates." xml:space="preserve">
+    <value>Yüklenen, başarısız olan ve kaldırılan Windows güncelleştirmeleri.</value>
+  </data>
+  <data name="Event Log Summary" xml:space="preserve">
+    <value>Olay Günlüğü Özeti</value>
+  </data>
+  <data name="Recent errors and warnings in the event logs, by source." xml:space="preserve">
+    <value>Olay günlüklerindeki son hatalar ve uyarılar, kaynağa göre.</value>
+  </data>
+  <data name="Disk Info" xml:space="preserve">
+    <value>Disk Bilgisi</value>
+  </data>
+  <data name="Capacity and free space for every drive." xml:space="preserve">
+    <value>Her sürücünün kapasitesi ve boş alanı.</value>
+  </data>
+  <data name="Disk Health" xml:space="preserve">
+    <value>Disk Sağlığı</value>
+  </data>
+  <data name="Physical disk health and SMART reliability counters." xml:space="preserve">
+    <value>Fiziksel disk sağlığı ve SMART güvenilirlik sayaçları.</value>
+  </data>
+  <data name="Network Info" xml:space="preserve">
+    <value>Ağ Bilgisi</value>
+  </data>
+  <data name="Network adapters, addresses and a quick ping." xml:space="preserve">
+    <value>Ağ bağdaştırıcıları, adresler ve hızlı ping.</value>
+  </data>
+  <data name="TCP Traceroute" xml:space="preserve">
+    <value>TCP Traceroute</value>
+  </data>
+  <data name="Trace the network path to a host over TCP." xml:space="preserve">
+    <value>Bir sunucuya giden ağ yolunu TCP ile izleyin.</value>
+  </data>
+  <data name="Firewall Ports" xml:space="preserve">
+    <value>Güvenlik Duvarı</value>
+  </data>
+  <data name="TCP/UDP ports opened by enabled inbound firewall rules." xml:space="preserve">
+    <value>Etkin gelen güvenlik duvarı kurallarının açtığı TCP/UDP portları.</value>
+  </data>
+  <data name="Open Ports" xml:space="preserve">
+    <value>Açık Portlar</value>
+  </data>
+  <data name="Listening ports and connections with the owning process." xml:space="preserve">
+    <value>Dinleyen portlar ve bağlantılar, sahibi olan işlemle birlikte.</value>
+  </data>
+  <data name="File Hash Calculator" xml:space="preserve">
+    <value>Dosya Özeti</value>
+  </data>
+  <data name="Compute and verify MD5, SHA-1, SHA-256 and SHA-512 hashes." xml:space="preserve">
+    <value>MD5, SHA-1, SHA-256 ve SHA-512 özetlerini hesaplayın ve doğrulayın.</value>
+  </data>
+  <data name="Environment Variables" xml:space="preserve">
+    <value>Ortam Değişkenleri</value>
+  </data>
+  <data name="Browse user, machine and process variables." xml:space="preserve">
+    <value>Kullanıcı, makine ve işlem değişkenlerine göz atın.</value>
+  </data>
+  <data name="Battery and Power" xml:space="preserve">
+    <value>Pil ve Güç</value>
+  </data>
+  <data name="Battery health, charge state and the active power plan." xml:space="preserve">
+    <value>Pil sağlığı, şarj durumu ve etkin güç planı.</value>
+  </data>
+  <data name="Installed Programs" xml:space="preserve">
+    <value>Yüklü Programlar</value>
+  </data>
+  <data name="Installed programs with size and install date." xml:space="preserve">
+    <value>Yüklü programlar, boyut ve yükleme tarihiyle.</value>
+  </data>
+  <data name="Startup Programs" xml:space="preserve">
+    <value>Başlangıç Programları</value>
+  </data>
+  <data name="Programs registered to start with Windows." xml:space="preserve">
+    <value>Windows ile başlamak üzere kayıtlı programlar.</value>
+  </data>
+  <data name="Local Users" xml:space="preserve">
+    <value>Yerel Kullanıcılar</value>
+  </data>
+  <data name="Local user accounts, their status and last logon." xml:space="preserve">
+    <value>Yerel kullanıcı hesapları, durumları ve son oturum açma.</value>
+  </data>
+  <data name="AI Chat" xml:space="preserve">
+    <value>Yapay Zekâ Sohbeti</value>
+  </data>
+  <data name="Ask an AI assistant that can inspect this PC." xml:space="preserve">
+    <value>Bu bilgisayarı inceleyebilen bir yapay zekâ asistanına sorun.</value>
+  </data>
+  <data name="Windows default ({0})" xml:space="preserve">
+    <value>Windows varsayılanı ({0})</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Dil</value>
+  </data>
+  <data name="The new language is used after the app restarts. Restart now?" xml:space="preserve">
+    <value>Yeni dil uygulama yeniden başlayınca kullanılır. Şimdi yeniden başlatılsın mı?</value>
+  </data>
+  <data name="Refresh" xml:space="preserve">
+    <value>Yenile</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>İptal</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Kapat</value>
+  </data>
+  <data name="Error" xml:space="preserve">
+    <value>Hata</value>
+  </data>
+  <data name="Error: {0}" xml:space="preserve">
+    <value>Hata: {0}</value>
+  </data>
+  <data name="Unknown" xml:space="preserve">
+    <value>Bilinmiyor</value>
+  </data>
+  <data name="Unknown error." xml:space="preserve">
+    <value>Bilinmeyen hata.</value>
+  </data>
+  <data name="Not available" xml:space="preserve">
+    <value>Yok</value>
+  </data>
+  <data name="Not reported" xml:space="preserve">
+    <value>Bildirilmiyor</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Ad</value>
+  </data>
+  <data name="Type" xml:space="preserve">
+    <value>Tür</value>
+  </data>
+  <data name="Size" xml:space="preserve">
+    <value>Boyut</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>Durum</value>
+  </data>
+  <data name="State" xml:space="preserve">
+    <value>Durum</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Açıklama</value>
+  </data>
+  <data name="Location" xml:space="preserve">
+    <value>Konum</value>
+  </data>
+  <data name="Property" xml:space="preserve">
+    <value>Özellik</value>
+  </data>
+  <data name="Value" xml:space="preserve">
+    <value>Değer</value>
+  </data>
+  <data name="Health" xml:space="preserve">
+    <value>Sağlık</value>
+  </data>
+  <data name="Browse..." xml:space="preserve">
+    <value>Gözat...</value>
+  </data>
+  <data name="Scan" xml:space="preserve">
+    <value>Tara</value>
+  </data>
+  <data name="Scan:" xml:space="preserve">
+    <value>Tara:</value>
+  </data>
+  <data name="Scan cancelled." xml:space="preserve">
+    <value>Tarama iptal edildi.</value>
+  </data>
+  <data name="Cancelled." xml:space="preserve">
+    <value>İptal edildi.</value>
+  </data>
+  <data name="Folder" xml:space="preserve">
+    <value>Klasör</value>
+  </data>
+  <data name="File" xml:space="preserve">
+    <value>Dosya</value>
+  </data>
+  <data name="Files" xml:space="preserve">
+    <value>Dosyalar</value>
+  </data>
+  <data name="Modified" xml:space="preserve">
+    <value>Değiştirilme</value>
+  </data>
+  <data name="Open in Explorer" xml:space="preserve">
+    <value>Gezgin'de Aç</value>
+  </data>
+  <data name="Delete Selected" xml:space="preserve">
+    <value>Seçilenleri Sil</value>
+  </data>
+  <data name="Delete Files" xml:space="preserve">
+    <value>Dosyaları Sil</value>
+  </data>
+  <data name="Select a file first." xml:space="preserve">
+    <value>Önce bir dosya seçin.</value>
+  </data>
+  <data name="Select one or more files first." xml:space="preserve">
+    <value>Önce bir veya daha fazla dosya seçin.</value>
+  </data>
+  <data name="File no longer exists." xml:space="preserve">
+    <value>Dosya artık yok.</value>
+  </data>
+  <data name="Could not open Explorer: {0}" xml:space="preserve">
+    <value>Gezgin açılamadı: {0}</value>
+  </data>
+  <data name="All fixed drives" xml:space="preserve">
+    <value>Tüm sabit sürücüler</value>
+  </data>
+  <data name="Pick a valid drive or folder to scan." xml:space="preserve">
+    <value>Taramak için geçerli bir sürücü veya klasör seçin.</value>
+  </data>
+  <data name="Scanning... {0:N0} files checked" xml:space="preserve">
+    <value>Taranıyor... {0:N0} dosya denetlendi</value>
+  </data>
+  <data name="Skipped {0}" xml:space="preserve">
+    <value>Atlananlar: {0}</value>
+  </data>
+  <data name="Delete {0} file(s) ({1})? They will be moved to the Recycle Bin." xml:space="preserve">
+    <value>{0} dosya ({1}) silinsin mi? Geri Dönüşüm Kutusu'na taşınacaklar.</value>
+  </data>
+  <data name="Files that cannot be recycled (too large, or on a network or USB drive) will ask before being permanently deleted." xml:space="preserve">
+    <value>Geri Dönüşüm Kutusu'na gidemeyen dosyalar (çok büyük ya da ağ veya USB sürücüsünde) kalıcı olarak silinmeden önce sorulacak.</value>
+  </data>
+  <data name="Deleted {0} file(s)." xml:space="preserve">
+    <value>{0} dosya silindi.</value>
+  </data>
+  <data name="Kept {0} that could not be recycled." xml:space="preserve">
+    <value>Geri Dönüşüm Kutusu'na gidemeyen {0} dosya tutuldu.</value>
+  </data>
+  <data name="{0} failed." xml:space="preserve">
+    <value>{0} başarısız oldu.</value>
+  </data>
+  <data name="Some files could not be deleted" xml:space="preserve">
+    <value>Bazı dosyalar silinemedi</value>
+  </data>
+  <data name="Protocol" xml:space="preserve">
+    <value>Protokol</value>
+  </data>
+  <data name="Password never expires" xml:space="preserve">
+    <value>Parola hiçbir zaman sona ermez</value>
+  </data>
+  <data name="User cannot change password" xml:space="preserve">
+    <value>Kullanıcı parolayı değiştiremez</value>
+  </data>
+  <data name="Standard user" xml:space="preserve">
+    <value>Standart kullanıcı</value>
+  </data>
+  <data name="Administrator" xml:space="preserve">
+    <value>Yönetici</value>
+  </data>
+  <data name="Create" xml:space="preserve">
+    <value>Oluştur</value>
+  </data>
+  <data name="Add Local User" xml:space="preserve">
+    <value>Yerel Kullanıcı Ekle</value>
+  </data>
+  <data name="User name *" xml:space="preserve">
+    <value>Kullanıcı adı *</value>
+  </data>
+  <data name="max. 20 chars, no spaces" xml:space="preserve">
+    <value>en fazla 20 karakter, boşluksuz</value>
+  </data>
+  <data name="Full name" xml:space="preserve">
+    <value>Tam ad</value>
+  </data>
+  <data name="Password *" xml:space="preserve">
+    <value>Parola *</value>
+  </data>
+  <data name="Confirm password *" xml:space="preserve">
+    <value>Parolayı onayla *</value>
+  </data>
+  <data name="Account type:" xml:space="preserve">
+    <value>Hesap türü:</value>
+  </data>
+  <data name="Creating an account requires Administrator privileges." xml:space="preserve">
+    <value>Hesap oluşturmak için Yönetici yetkisi gerekir.</value>
+  </data>
+  <data name="The passwords do not match." xml:space="preserve">
+    <value>Parolalar eşleşmiyor.</value>
+  </data>
+  <data name="Creating account..." xml:space="preserve">
+    <value>Hesap oluşturuluyor...</value>
+  </data>
+  <data name="Read-only. Health = full-charge capacity as a share of the design capacity, as reported by the battery driver." xml:space="preserve">
+    <value>Salt okunur. Sağlık = pil sürücüsünün bildirdiği tam şarj kapasitesinin tasarım kapasitesine oranı.</value>
+  </data>
+  <data name="Reading battery and power status..." xml:space="preserve">
+    <value>Pil ve güç durumu okunuyor...</value>
+  </data>
+  <data name="Power Source" xml:space="preserve">
+    <value>Güç Kaynağı</value>
+  </data>
+  <data name="Power Plan" xml:space="preserve">
+    <value>Güç Planı</value>
+  </data>
+  <data name="Battery Saver" xml:space="preserve">
+    <value>Pil Tasarrufu</value>
+  </data>
+  <data name="On" xml:space="preserve">
+    <value>Açık</value>
+  </data>
+  <data name="Off" xml:space="preserve">
+    <value>Kapalı</value>
+  </data>
+  <data name="Battery" xml:space="preserve">
+    <value>Pil</value>
+  </data>
+  <data name="No battery detected (desktop, server or virtual machine)." xml:space="preserve">
+    <value>Pil bulunamadı (masaüstü, sunucu veya sanal makine).</value>
+  </data>
+  <data name="Charge" xml:space="preserve">
+    <value>Şarj</value>
+  </data>
+  <data name="Time Remaining" xml:space="preserve">
+    <value>Kalan Süre</value>
+  </data>
+  <data name="{0}h {1}m" xml:space="preserve">
+    <value>{0} sa {1} dk</value>
+  </data>
+  <data name="No battery." xml:space="preserve">
+    <value>Pil yok.</value>
+  </data>
+  <data name="Chemistry" xml:space="preserve">
+    <value>Kimya</value>
+  </data>
+  <data name="Design Capacity" xml:space="preserve">
+    <value>Tasarım Kapasitesi</value>
+  </data>
+  <data name="Full Charge Capacity" xml:space="preserve">
+    <value>Tam Şarj Kapasitesi</value>
+  </data>
+  <data name="(worn, consider replacing)" xml:space="preserve">
+    <value>(yıpranmış, değiştirmeyi düşünün)</value>
+  </data>
+  <data name="Not reported by the driver" xml:space="preserve">
+    <value>Sürücü bildirmiyor</value>
+  </data>
+  <data name="Cycle Count" xml:space="preserve">
+    <value>Döngü Sayısı</value>
+  </data>
+  <data name="Remaining Capacity" xml:space="preserve">
+    <value>Kalan Kapasite</value>
+  </data>
+  <data name="{0} Rate" xml:space="preserve">
+    <value>{0} Hızı</value>
+  </data>
+  <data name="Load models" xml:space="preserve">
+    <value>Modelleri yükle</value>
+  </data>
+  <data name="API key" xml:space="preserve">
+    <value>API anahtarı</value>
+  </data>
+  <data name="Send" xml:space="preserve">
+    <value>Gönder</value>
+  </data>
+  <data name="Stop" xml:space="preserve">
+    <value>Durdur</value>
+  </data>
+  <data name="New chat" xml:space="preserve">
+    <value>Yeni sohbet</value>
+  </data>
+  <data name="Clear" xml:space="preserve">
+    <value>Temizle</value>
+  </data>
+  <data name="Export..." xml:space="preserve">
+    <value>Dışa aktar...</value>
+  </data>
+  <data name="Export" xml:space="preserve">
+    <value>Dışa aktar</value>
+  </data>
+  <data name="Forget" xml:space="preserve">
+    <value>Unut</value>
+  </data>
+  <data name="Start MCP server" xml:space="preserve">
+    <value>MCP sunucusunu başlat</value>
+  </data>
+  <data name="Stop MCP server" xml:space="preserve">
+    <value>MCP sunucusunu durdur</value>
+  </data>
+  <data name="Remember" xml:space="preserve">
+    <value>Hatırla</value>
+  </data>
+  <data name="Endpoint:" xml:space="preserve">
+    <value>Uç nokta:</value>
+  </data>
+  <data name="API key:" xml:space="preserve">
+    <value>API anahtarı:</value>
+  </data>
+  <data name="Model:" xml:space="preserve">
+    <value>Model:</value>
+  </data>
+  <data name="Reasoning:" xml:space="preserve">
+    <value>Akıl yürütme:</value>
+  </data>
+  <data name="Enter your endpoint, model and API key above, then ask anything. The agent can inspect this PC via read-only tools (system info, processes, drives, files)." xml:space="preserve">
+    <value>Yukarıya uç noktanızı, modeli ve API anahtarını girin, sonra istediğinizi sorun. Asistan bu bilgisayarı salt okunur araçlarla inceleyebilir (sistem bilgisi, işlemler, sürücüler, dosyalar).</value>
+  </data>
+  <data name="Type a message... (Enter to send, Shift+Enter for newline)" xml:space="preserve">
+    <value>Bir mesaj yazın... (göndermek için Enter, yeni satır için Shift+Enter)</value>
+  </data>
+  <data name="Not connected." xml:space="preserve">
+    <value>Bağlı değil.</value>
+  </data>
+  <data name="New conversation started." xml:space="preserve">
+    <value>Yeni sohbet başladı.</value>
+  </data>
+  <data name="Loading models..." xml:space="preserve">
+    <value>Modeller yükleniyor...</value>
+  </data>
+  <data name="The endpoint returned no models. Type the model name by hand." xml:space="preserve">
+    <value>Uç nokta hiç model döndürmedi. Model adını elle yazın.</value>
+  </data>
+  <data name="Loaded {0} model(s). Pick one or type a name." xml:space="preserve">
+    <value>{0} model yüklendi. Birini seçin veya bir ad yazın.</value>
+  </data>
+  <data name="Could not list models: the endpoint rejected the API key (HTTP 401/403). You can still type a model name." xml:space="preserve">
+    <value>Modeller listelenemedi: uç nokta API anahtarını reddetti (HTTP 401/403). Model adını yine de yazabilirsiniz.</value>
+  </data>
+  <data name="Could not list models ({0}). You can still type a model name." xml:space="preserve">
+    <value>Modeller listelenemedi ({0}). Model adını yine de yazabilirsiniz.</value>
+  </data>
+  <data name="Loaded the saved API key for this endpoint." xml:space="preserve">
+    <value>Bu uç nokta için kayıtlı API anahtarı yüklendi.</value>
+  </data>
+  <data name="The API key box was emptied: keys are stored per endpoint host." xml:space="preserve">
+    <value>API anahtarı kutusu boşaltıldı: anahtarlar her uç nokta sunucusu için ayrı saklanır.</value>
+  </data>
+  <data name="Could not save settings: {0}" xml:space="preserve">
+    <value>Ayarlar kaydedilemedi: {0}</value>
+  </data>
+  <data name="Saved settings forgotten." xml:space="preserve">
+    <value>Kayıtlı ayarlar silindi.</value>
+  </data>
+  <data name="MCP server stopped." xml:space="preserve">
+    <value>MCP sunucusu durduruldu.</value>
+  </data>
+  <data name="Could not stop the MCP server: {0}" xml:space="preserve">
+    <value>MCP sunucusu durdurulamadı: {0}</value>
+  </data>
+  <data name="Starting MCP server..." xml:space="preserve">
+    <value>MCP sunucusu başlatılıyor...</value>
+  </data>
+  <data name="MCP server running at {0} — it exposes the read-only tools and the AI agent; the bearer token was shown in a dialog and is new on every start." xml:space="preserve">
+    <value>MCP sunucusu {0} adresinde çalışıyor; salt okunur araçları ve yapay zekâ asistanını sunar. Erişim belirteci bir pencerede gösterildi ve her başlatmada yenilenir.</value>
+  </data>
+  <data name="MCP server: {0}" xml:space="preserve">
+    <value>MCP sunucusu: {0}</value>
+  </data>
+  <data name="Could not start the MCP server." xml:space="preserve">
+    <value>MCP sunucusu başlatılamadı.</value>
+  </data>
+  <data name="Could not start the MCP server: {0}" xml:space="preserve">
+    <value>MCP sunucusu başlatılamadı: {0}</value>
+  </data>
+  <data name="Nothing to export." xml:space="preserve">
+    <value>Dışa aktarılacak bir şey yok.</value>
+  </data>
+  <data name="Markdown files (*.md)|*.md|Text files (*.txt)|*.txt|All files (*.*)|*.*" xml:space="preserve">
+    <value>Markdown dosyaları (*.md)|*.md|Metin dosyaları (*.txt)|*.txt|Tüm dosyalar (*.*)|*.*</value>
+  </data>
+  <data name="Chat exported to {0}." xml:space="preserve">
+    <value>Sohbet {0} dosyasına aktarıldı.</value>
+  </data>
+  <data name="Could not export chat: {0}" xml:space="preserve">
+    <value>Sohbet dışa aktarılamadı: {0}</value>
+  </data>
+  <data name="Enter a valid endpoint URL (e.g. https://api.openai.com/v1)." xml:space="preserve">
+    <value>Geçerli bir uç nokta adresi girin (ör. https://api.openai.com/v1).</value>
+  </data>
+  <data name="Enter a model name (e.g. gpt-4o-mini)." xml:space="preserve">
+    <value>Bir model adı girin (ör. gpt-4o-mini).</value>
+  </data>
+  <data name="Enter an API key." xml:space="preserve">
+    <value>Bir API anahtarı girin.</value>
+  </data>
+  <data name="The model does not support reasoning_effort, retrying without it." xml:space="preserve">
+    <value>Model reasoning_effort desteklemiyor, onsuz yeniden deneniyor.</value>
+  </data>
+  <data name="Ready." xml:space="preserve">
+    <value>Hazır.</value>
+  </data>
+  <data name="No response: {0}" xml:space="preserve">
+    <value>Yanıt yok: {0}</value>
+  </data>
+  <data name="No response from the endpoint." xml:space="preserve">
+    <value>Uç noktadan yanıt gelmedi.</value>
+  </data>
+  <data name="Authorization failed: the endpoint rejected the API key (HTTP 401/403). Check that the key is correct and belongs to this endpoint/model." xml:space="preserve">
+    <value>Yetkilendirme başarısız: uç nokta API anahtarını reddetti (HTTP 401/403). Anahtarın doğru olduğunu ve bu uç noktaya/modele ait olduğunu kontrol edin.</value>
+  </data>
+  <data name="Error — check endpoint/model/key." xml:space="preserve">
+    <value>Hata: uç noktayı, modeli ve anahtarı kontrol edin.</value>
+  </data>
+  <data name="Waiting for your permission to run {0}..." xml:space="preserve">
+    <value>{0} aracını çalıştırmak için izniniz bekleniyor...</value>
+  </data>
+  <data name="The model is thinking..." xml:space="preserve">
+    <value>Model düşünüyor...</value>
+  </data>
+  <data name="Running tool {0}..." xml:space="preserve">
+    <value>{0} aracı çalışıyor...</value>
+  </data>
+  <data name="Writing..." xml:space="preserve">
+    <value>Yazıyor...</value>
+  </data>
+  <data name="Waiting for the model..." xml:space="preserve">
+    <value>Model bekleniyor...</value>
+  </data>
+  <data name="Copy config" xml:space="preserve">
+    <value>Yapılandırmayı kopyala</value>
+  </data>
+  <data name="MCP Server" xml:space="preserve">
+    <value>MCP Sunucusu</value>
+  </data>
+  <data name="MCP server started." xml:space="preserve">
+    <value>MCP sunucusu başladı.</value>
+  </data>
+  <data name="Add this entry to the mcp.json of an MCP client on this PC (e.g. VS Code). The token is new every time the server starts, so update the client after restarting it. The server only accepts connections from this PC and stops when the button is clicked again." xml:space="preserve">
+    <value>Bu girdiyi bu bilgisayardaki bir MCP istemcisinin mcp.json dosyasına ekleyin (ör. VS Code). Belirteç sunucu her başladığında yenilenir; sunucuyu yeniden başlattıktan sonra istemciyi güncelleyin. Sunucu yalnızca bu bilgisayardan gelen bağlantıları kabul eder ve düğmeye yeniden tıklandığında durur.</value>
+  </data>
+  <data name="Copied to the clipboard." xml:space="preserve">
+    <value>Panoya kopyalandı.</value>
+  </data>
+  <data name="Could not copy ({0}); select the text and press Ctrl+C instead." xml:space="preserve">
+    <value>Kopyalanamadı ({0}); metni seçip Ctrl+C'ye basın.</value>
+  </data>
+  <data name="You" xml:space="preserve">
+    <value>Siz</value>
+  </data>
+  <data name="Assistant" xml:space="preserve">
+    <value>Asistan</value>
+  </data>
+  <data name="Read-only. Temperature, wear and error counters need Administrator and a drive that reports them." xml:space="preserve">
+    <value>Salt okunur. Sıcaklık, yıpranma ve hata sayaçları için Yönetici yetkisi ve bunları bildiren bir sürücü gerekir.</value>
+  </data>
+  <data name="Reading disk health..." xml:space="preserve">
+    <value>Disk sağlığı okunuyor...</value>
+  </data>
+  <data name="{0} disk(s), all healthy." xml:space="preserve">
+    <value>{0} disk, hepsi sağlıklı.</value>
+  </data>
+  <data name="{0} disk(s), {1} need attention." xml:space="preserve">
+    <value>{0} disk, {1} tanesi ilgi bekliyor.</value>
+  </data>
+  <data name="Disk {0}" xml:space="preserve">
+    <value>Disk {0}</value>
+  </data>
+  <data name="Failure predicted" xml:space="preserve">
+    <value>Arıza öngörülüyor</value>
+  </data>
+  <data name="No failure predicted" xml:space="preserve">
+    <value>Arıza öngörülmüyor</value>
+  </data>
+  <data name="(max {0} °C)" xml:space="preserve">
+    <value>(en yüksek {0} °C)</value>
+  </data>
+  <data name="Operational status" xml:space="preserve">
+    <value>Çalışma durumu</value>
+  </data>
+  <data name="SMART failure prediction" xml:space="preserve">
+    <value>SMART arıza öngörüsü</value>
+  </data>
+  <data name="Temperature" xml:space="preserve">
+    <value>Sıcaklık</value>
+  </data>
+  <data name="Wear" xml:space="preserve">
+    <value>Yıpranma</value>
+  </data>
+  <data name="Power-on hours" xml:space="preserve">
+    <value>Çalışma saati</value>
+  </data>
+  <data name="Uncorrected read errors" xml:space="preserve">
+    <value>Düzeltilemeyen okuma hataları</value>
+  </data>
+  <data name="Uncorrected write errors" xml:space="preserve">
+    <value>Düzeltilemeyen yazma hataları</value>
+  </data>
+  <data name="Start/stop cycles" xml:space="preserve">
+    <value>Başlatma/durdurma döngüleri</value>
+  </data>
+  <data name="Drive" xml:space="preserve">
+    <value>Sürücü</value>
+  </data>
+  <data name="Label" xml:space="preserve">
+    <value>Etiket</value>
+  </data>
+  <data name="Format" xml:space="preserve">
+    <value>Biçim</value>
+  </data>
+  <data name="Total" xml:space="preserve">
+    <value>Toplam</value>
+  </data>
+  <data name="Free" xml:space="preserve">
+    <value>Boş</value>
+  </data>
+  <data name="Free %" xml:space="preserve">
+    <value>Boş %</value>
+  </data>
+  <data name="(not ready)" xml:space="preserve">
+    <value>(hazır değil)</value>
+  </data>
+  <data name="Any size" xml:space="preserve">
+    <value>Her boyut</value>
+  </data>
+  <data name="1 KB or larger" xml:space="preserve">
+    <value>1 KB veya daha büyük</value>
+  </data>
+  <data name="1 MB or larger" xml:space="preserve">
+    <value>1 MB veya daha büyük</value>
+  </data>
+  <data name="10 MB or larger" xml:space="preserve">
+    <value>10 MB veya daha büyük</value>
+  </data>
+  <data name="100 MB or larger" xml:space="preserve">
+    <value>100 MB veya daha büyük</value>
+  </data>
+  <data name="Find Duplicates" xml:space="preserve">
+    <value>Yinelenenleri Bul</value>
+  </data>
+  <data name="Group" xml:space="preserve">
+    <value>Grup</value>
+  </data>
+  <data name="Select Copies (Keep Oldest)" xml:space="preserve">
+    <value>Kopyaları Seç (En Eskiyi Tut)</value>
+  </data>
+  <data name="Comparing same-size files... {0:N0} of {1:N0}" xml:space="preserve">
+    <value>Aynı boyuttaki dosyalar karşılaştırılıyor... {0:N0} / {1:N0}</value>
+  </data>
+  <data name="Hashing possible duplicates... {0:N0} of {1:N0}" xml:space="preserve">
+    <value>Olası yinelenenlerin özeti hesaplanıyor... {0:N0} / {1:N0}</value>
+  </data>
+  <data name="Done. Scanned {0:N0} files, no duplicates found." xml:space="preserve">
+    <value>Bitti. {0:N0} dosya tarandı, yinelenen bulunamadı.</value>
+  </data>
+  <data name="Done. Scanned {0:N0} files. {1:N0} groups of duplicates, {2} could be freed." xml:space="preserve">
+    <value>Bitti. {0:N0} dosya tarandı. {1:N0} yinelenen grubu, {2} boşaltılabilir.</value>
+  </data>
+  <data name="Nothing to select. Run a scan first." xml:space="preserve">
+    <value>Seçilecek bir şey yok. Önce tarama yapın.</value>
+  </data>
+  <data name="Selected {0:N0} copies. The oldest file in each group is kept." xml:space="preserve">
+    <value>{0:N0} kopya seçildi. Her gruptaki en eski dosya tutulur.</value>
+  </data>
+  <data name="Warning: for {0} group(s) you selected every copy, so no copy of those files will be left." xml:space="preserve">
+    <value>Uyarı: {0} grupta tüm kopyaları seçtiniz, bu dosyaların hiçbir kopyası kalmayacak.</value>
+  </data>
+  <data name="Target:" xml:space="preserve">
+    <value>Hedef:</value>
+  </data>
+  <data name="Last hour" xml:space="preserve">
+    <value>Son bir saat</value>
+  </data>
+  <data name="Last 24 hours" xml:space="preserve">
+    <value>Son 24 saat</value>
+  </data>
+  <data name="Last 7 days" xml:space="preserve">
+    <value>Son 7 gün</value>
+  </data>
+  <data name="Last 30 days" xml:space="preserve">
+    <value>Son 30 gün</value>
+  </data>
+  <data name="Include warnings" xml:space="preserve">
+    <value>Uyarıları da göster</value>
+  </data>
+  <data name="Level" xml:space="preserve">
+    <value>Düzey</value>
+  </data>
+  <data name="Log" xml:space="preserve">
+    <value>Günlük</value>
+  </data>
+  <data name="Source" xml:space="preserve">
+    <value>Kaynak</value>
+  </data>
+  <data name="Count" xml:space="preserve">
+    <value>Sayı</value>
+  </data>
+  <data name="Last Seen" xml:space="preserve">
+    <value>Son Görülme</value>
+  </data>
+  <data name="Event IDs" xml:space="preserve">
+    <value>Olay Kimlikleri</value>
+  </data>
+  <data name="Latest Message" xml:space="preserve">
+    <value>Son İleti</value>
+  </data>
+  <data name="Reading the System and Application logs..." xml:space="preserve">
+    <value>Sistem ve Uygulama günlükleri okunuyor...</value>
+  </data>
+  <data name="{0} event(s) from {1} source(s)." xml:space="preserve">
+    <value>{1} kaynaktan {0} olay.</value>
+  </data>
+  <data name="Select a file..." xml:space="preserve">
+    <value>Bir dosya seçin...</value>
+  </data>
+  <data name="Compute Hashes" xml:space="preserve">
+    <value>Özetleri Hesapla</value>
+  </data>
+  <data name="Algorithms:" xml:space="preserve">
+    <value>Algoritmalar:</value>
+  </data>
+  <data name="Paste a hash here to verify..." xml:space="preserve">
+    <value>Doğrulamak için bir özet yapıştırın...</value>
+  </data>
+  <data name="Verify" xml:space="preserve">
+    <value>Doğrula</value>
+  </data>
+  <data name="All files (*.*)|*.*" xml:space="preserve">
+    <value>Tüm dosyalar (*.*)|*.*</value>
+  </data>
+  <data name="Select an existing file first." xml:space="preserve">
+    <value>Önce var olan bir dosya seçin.</value>
+  </data>
+  <data name="File Hash" xml:space="preserve">
+    <value>Dosya Özeti</value>
+  </data>
+  <data name="Select at least one hash algorithm." xml:space="preserve">
+    <value>En az bir özet algoritması seçin.</value>
+  </data>
+  <data name="Computing..." xml:space="preserve">
+    <value>Hesaplanıyor...</value>
+  </data>
+  <data name="Failed to hash file: {0}" xml:space="preserve">
+    <value>Dosyanın özeti hesaplanamadı: {0}</value>
+  </data>
+  <data name="MATCH: the file matches the provided {0} hash." xml:space="preserve">
+    <value>EŞLEŞTİ: dosya verilen {0} özetiyle eşleşiyor.</value>
+  </data>
+  <data name="NO MATCH with any computed hash." xml:space="preserve">
+    <value>Hesaplanan hiçbir özetle EŞLEŞMEDİ.</value>
+  </data>
+  <data name="Filter by rule name or port..." xml:space="preserve">
+    <value>Kural adına veya porta göre süz...</value>
+  </data>
+  <data name="Local Ports" xml:space="preserve">
+    <value>Yerel Portlar</value>
+  </data>
+  <data name="Rule Name" xml:space="preserve">
+    <value>Kural Adı</value>
+  </data>
+  <data name="Application / Service" xml:space="preserve">
+    <value>Uygulama / Hizmet</value>
+  </data>
+  <data name="Profiles" xml:space="preserve">
+    <value>Profiller</value>
+  </data>
+  <data name="Read-only view of enabled inbound allow rules (Windows Firewall)." xml:space="preserve">
+    <value>Etkin gelen izin kurallarının salt okunur görünümü (Windows Güvenlik Duvarı).</value>
+  </data>
+  <data name="Reading firewall rules..." xml:space="preserve">
+    <value>Güvenlik duvarı kuralları okunuyor...</value>
+  </data>
+  <data name="{0} enabled inbound allow rule(s)." xml:space="preserve">
+    <value>{0} etkin gelen izin kuralı.</value>
+  </data>
+  <data name="Select a folder..." xml:space="preserve">
+    <value>Bir klasör seçin...</value>
+  </data>
+  <data name="Analyze" xml:space="preserve">
+    <value>Analiz Et</value>
+  </data>
+  <data name="Select an existing folder." xml:space="preserve">
+    <value>Var olan bir klasör seçin.</value>
+  </data>
+  <data name="Analyzing..." xml:space="preserve">
+    <value>Analiz ediliyor...</value>
+  </data>
+  <data name="Done: {0} items, total {1}." xml:space="preserve">
+    <value>Bitti: {0} öğe, toplam {1}.</value>
+  </data>
+  <data name="Filter by name or publisher..." xml:space="preserve">
+    <value>Ada veya yayıncıya göre süz...</value>
+  </data>
+  <data name="Version" xml:space="preserve">
+    <value>Sürüm</value>
+  </data>
+  <data name="Publisher" xml:space="preserve">
+    <value>Yayıncı</value>
+  </data>
+  <data name="Installed" xml:space="preserve">
+    <value>Yüklenme</value>
+  </data>
+  <data name="Scope" xml:space="preserve">
+    <value>Kapsam</value>
+  </data>
+  <data name="Read-only (registry Uninstall keys). Click a header to sort. Blank size/date: not recorded by the installer." xml:space="preserve">
+    <value>Salt okunur (kayıt defteri Uninstall anahtarları). Sıralamak için bir başlığa tıklayın. Boş boyut/tarih: yükleyici kaydetmemiş.</value>
+  </data>
+  <data name="Reading installed programs..." xml:space="preserve">
+    <value>Yüklü programlar okunuyor...</value>
+  </data>
+  <data name="{0} programs, {1} reported size." xml:space="preserve">
+    <value>{0} program, bildirilen boyut {1}.</value>
+  </data>
+  <data name="Rank" xml:space="preserve">
+    <value>Sıra</value>
+  </data>
+  <data name="Done. Scanned {0:N0} files, nothing found." xml:space="preserve">
+    <value>Bitti. {0:N0} dosya tarandı, bir şey bulunamadı.</value>
+  </data>
+  <data name="Done. Scanned {0:N0} files. Top {1} files total {2}. Double-click a row to open it in Explorer." xml:space="preserve">
+    <value>Bitti. {0:N0} dosya tarandı. En büyük {1} dosya toplam {2}. Gezgin'de açmak için bir satıra çift tıklayın.</value>
+  </data>
+  <data name="Last logon" xml:space="preserve">
+    <value>Son oturum açma</value>
+  </data>
+  <data name="Password last set" xml:space="preserve">
+    <value>Parola son değişim</value>
+  </data>
+  <data name="Add User..." xml:space="preserve">
+    <value>Kullanıcı Ekle...</value>
+  </data>
+  <data name="Delete User" xml:space="preserve">
+    <value>Kullanıcıyı Sil</value>
+  </data>
+  <data name="Read-only view of the local user accounts on this PC (domain accounts are not listed)." xml:space="preserve">
+    <value>Bu bilgisayardaki yerel kullanıcı hesaplarının salt okunur görünümü (etki alanı hesapları listelenmez).</value>
+  </data>
+  <data name="Never" xml:space="preserve">
+    <value>Hiç</value>
+  </data>
+  <data name="Could not read user accounts: {0}" xml:space="preserve">
+    <value>Kullanıcı hesapları okunamadı: {0}</value>
+  </data>
+  <data name="You cannot delete the account you are currently signed in with." xml:space="preserve">
+    <value>Şu anda oturum açtığınız hesabı silemezsiniz.</value>
+  </data>
+  <data name="Delete the local user '{0}'? This cannot be undone." xml:space="preserve">
+    <value>'{0}' yerel kullanıcısı silinsin mi? Bu işlem geri alınamaz.</value>
+  </data>
+  <data name="Account '{0}' deleted." xml:space="preserve">
+    <value>'{0}' hesabı silindi.</value>
+  </data>
+  <data name="Could not delete '{0}': {1}" xml:space="preserve">
+    <value>'{0}' silinemedi: {1}</value>
+  </data>
+  <data name="Account '{0}' created." xml:space="preserve">
+    <value>'{0}' hesabı oluşturuldu.</value>
+  </data>
+  <data name="Adapter" xml:space="preserve">
+    <value>Bağdaştırıcı</value>
+  </data>
+  <data name="Host to ping (e.g. 8.8.8.8)" xml:space="preserve">
+    <value>Ping atılacak sunucu (ör. 8.8.8.8)</value>
+  </data>
+  <data name="Ping" xml:space="preserve">
+    <value>Ping</value>
+  </data>
+  <data name="Enter a host first." xml:space="preserve">
+    <value>Önce bir sunucu girin.</value>
+  </data>
+  <data name="Pinging {0}..." xml:space="preserve">
+    <value>{0} adresine ping atılıyor...</value>
+  </data>
+  <data name="Reply from {0}: time={1}ms" xml:space="preserve">
+    <value>{0} yanıt verdi: süre={1}ms</value>
+  </data>
+  <data name="Request failed: {0}" xml:space="preserve">
+    <value>İstek başarısız: {0}</value>
+  </data>
+  <data name="Ping failed: {0}" xml:space="preserve">
+    <value>Ping başarısız: {0}</value>
+  </data>
+  <data name="Filter by process, port or address..." xml:space="preserve">
+    <value>İşleme, porta veya adrese göre süz...</value>
+  </data>
+  <data name="Listening only" xml:space="preserve">
+    <value>Yalnızca dinleyenler</value>
+  </data>
+  <data name="Local Address" xml:space="preserve">
+    <value>Yerel Adres</value>
+  </data>
+  <data name="Local Port" xml:space="preserve">
+    <value>Yerel Port</value>
+  </data>
+  <data name="Remote Address" xml:space="preserve">
+    <value>Uzak Adres</value>
+  </data>
+  <data name="Remote Port" xml:space="preserve">
+    <value>Uzak Port</value>
+  </data>
+  <data name="Process" xml:space="preserve">
+    <value>İşlem</value>
+  </data>
+  <data name="Read-only (like netstat -ano). Process names of other users' services need Administrator." xml:space="preserve">
+    <value>Salt okunur (netstat -ano gibi). Diğer kullanıcıların hizmetlerinin işlem adları için Yönetici yetkisi gerekir.</value>
+  </data>
+  <data name="Reading connection tables..." xml:space="preserve">
+    <value>Bağlantı tabloları okunuyor...</value>
+  </data>
+  <data name="{0} listening, {1} other connection(s)." xml:space="preserve">
+    <value>{0} dinleyen, {1} diğer bağlantı.</value>
+  </data>
+  <data name="Command" xml:space="preserve">
+    <value>Komut</value>
+  </data>
+  <data name="Read-only view of programs registered to start with Windows (registry Run keys, 64-bit view)." xml:space="preserve">
+    <value>Windows ile başlamak üzere kayıtlı programların salt okunur görünümü (kayıt defteri Run anahtarları, 64 bit görünüm).</value>
+  </data>
+  <data name="Windows Features" xml:space="preserve">
+    <value>Windows Özellikleri</value>
+  </data>
+  <data name="Checking..." xml:space="preserve">
+    <value>Denetleniyor...</value>
+  </data>
+  <data name="Could not read: {0}" xml:space="preserve">
+    <value>Okunamadı: {0}</value>
+  </data>
+  <data name="(service {0}: {1})" xml:space="preserve">
+    <value>({0} hizmeti: {1})</value>
+  </data>
+  <data name="Not installed" xml:space="preserve">
+    <value>Yüklü değil</value>
+  </data>
+  <data name="{0} Location" xml:space="preserve">
+    <value>{0} Konumu</value>
+  </data>
+  <data name="Other {0} Installs" xml:space="preserve">
+    <value>Diğer {0} Kurulumları</value>
+  </data>
+  <data name="Operating System" xml:space="preserve">
+    <value>İşletim Sistemi</value>
+  </data>
+  <data name="OS Version" xml:space="preserve">
+    <value>İşletim Sistemi Sürümü</value>
+  </data>
+  <data name="OS Architecture" xml:space="preserve">
+    <value>İşletim Sistemi Mimarisi</value>
+  </data>
+  <data name="Machine Name" xml:space="preserve">
+    <value>Bilgisayar Adı</value>
+  </data>
+  <data name="Current User" xml:space="preserve">
+    <value>Geçerli Kullanıcı</value>
+  </data>
+  <data name=".NET Runtime" xml:space="preserve">
+    <value>.NET Çalışma Zamanı</value>
+  </data>
+  <data name="Logical Processors" xml:space="preserve">
+    <value>Mantıksal İşlemciler</value>
+  </data>
+  <data name="Total RAM" xml:space="preserve">
+    <value>Toplam RAM</value>
+  </data>
+  <data name="Available RAM" xml:space="preserve">
+    <value>Kullanılabilir RAM</value>
+  </data>
+  <data name="RAM In Use" xml:space="preserve">
+    <value>Kullanılan RAM</value>
+  </data>
+  <data name="System Uptime" xml:space="preserve">
+    <value>Sistem Çalışma Süresi</value>
+  </data>
+  <data name="{0} days, {1}h {2}m" xml:space="preserve">
+    <value>{0} gün, {1} sa {2} dk</value>
+  </data>
+  <data name="System Directory" xml:space="preserve">
+    <value>Sistem Klasörü</value>
+  </data>
+  <data name="Screen Resolution" xml:space="preserve">
+    <value>Ekran Çözünürlüğü</value>
+  </data>
+  <data name="Host (e.g. google.com)" xml:space="preserve">
+    <value>Sunucu (ör. google.com)</value>
+  </data>
+  <data name="Hostnames" xml:space="preserve">
+    <value>Sunucu adları</value>
+  </data>
+  <data name="Trace" xml:space="preserve">
+    <value>İzle</value>
+  </data>
+  <data name="Host:" xml:space="preserve">
+    <value>Sunucu:</value>
+  </data>
+  <data name="Port:" xml:space="preserve">
+    <value>Port:</value>
+  </data>
+  <data name="Hops:" xml:space="preserve">
+    <value>Atlama:</value>
+  </data>
+  <data name="Timeout (ms):" xml:space="preserve">
+    <value>Zaman aşımı (ms):</value>
+  </data>
+  <data name="Hop" xml:space="preserve">
+    <value>Atlama</value>
+  </data>
+  <data name="IP Address" xml:space="preserve">
+    <value>IP Adresi</value>
+  </data>
+  <data name="Hostname" xml:space="preserve">
+    <value>Sunucu Adı</value>
+  </data>
+  <data name="TCP traceroute needs Administrator privileges (raw socket for ICMP replies)." xml:space="preserve">
+    <value>TCP traceroute için Yönetici yetkisi gerekir (ICMP yanıtları için ham soket).</value>
+  </data>
+  <data name="Tracing... hop {0}/{1}" xml:space="preserve">
+    <value>İzleniyor... atlama {0}/{1}</value>
+  </data>
+  <data name="No hops." xml:space="preserve">
+    <value>Atlama yok.</value>
+  </data>
+  <data name="Reached {0} in {1} hop(s)." xml:space="preserve">
+    <value>{0} adresine {1} atlamada ulaşıldı.</value>
+  </data>
+  <data name="Finished: target not reached within {0} hop(s)." xml:space="preserve">
+    <value>Bitti: hedefe {0} atlamada ulaşılamadı.</value>
+  </data>
+  <data name="Clean Selected" xml:space="preserve">
+    <value>Seçilenleri Temizle</value>
+  </data>
+  <data name="Clean" xml:space="preserve">
+    <value>Temizle</value>
+  </data>
+  <data name="Total Size" xml:space="preserve">
+    <value>Toplam Boyut</value>
+  </data>
+  <data name="Cleanable" xml:space="preserve">
+    <value>Temizlenebilir</value>
+  </data>
+  <data name="Only these folders are touched. Files changed in the last {0:0} h or in use are kept. Deletes permanently." xml:space="preserve">
+    <value>Yalnızca bu klasörlere dokunulur. Son {0:0} saatte değişen veya kullanımda olan dosyalar tutulur. Kalıcı olarak siler.</value>
+  </data>
+  <data name="Measuring temp and cache folders..." xml:space="preserve">
+    <value>Geçici ve önbellek klasörleri ölçülüyor...</value>
+  </data>
+  <data name="{0} in {1} locations; {2} can be cleaned." xml:space="preserve">
+    <value>{1} konumda {0}; {2} temizlenebilir.</value>
+  </data>
+  <data name="Tick at least one location with something to clean." xml:space="preserve">
+    <value>Temizlenecek bir şeyi olan en az bir konumu işaretleyin.</value>
+  </data>
+  <data name="{0}: {1} ({2:N0} files)" xml:space="preserve">
+    <value>{0}: {1} ({2:N0} dosya)</value>
+  </data>
+  <data name="...and {0} more folders" xml:space="preserve">
+    <value>...ve {0} klasör daha</value>
+  </data>
+  <data name="Permanently delete {0} of temporary files?" xml:space="preserve">
+    <value>{0} geçici dosya kalıcı olarak silinsin mi?</value>
+  </data>
+  <data name="The files are not moved to the Recycle Bin. Files in use are skipped." xml:space="preserve">
+    <value>Dosyalar Geri Dönüşüm Kutusu'na taşınmaz. Kullanımdaki dosyalar atlanır.</value>
+  </data>
+  <data name="Clean Temp Files" xml:space="preserve">
+    <value>Geçici Dosyaları Temizle</value>
+  </data>
+  <data name="Cleaning {0}..." xml:space="preserve">
+    <value>{0} temizleniyor...</value>
+  </data>
+  <data name="Cleaning stopped: {0}" xml:space="preserve">
+    <value>Temizlik durdu: {0}</value>
+  </data>
+  <data name="Some locations were not cleaned:" xml:space="preserve">
+    <value>Bazı konumlar temizlenmedi:</value>
+  </data>
+  <data name="Cleaning cancelled; some files may already be deleted (sizes above are current)." xml:space="preserve">
+    <value>Temizlik iptal edildi; bazı dosyalar silinmiş olabilir (yukarıdaki boyutlar günceldir).</value>
+  </data>
+  <data name="Freed {0} ({1:N0} files deleted, {2:N0} in use or protected were kept)." xml:space="preserve">
+    <value>{0} boşaltıldı ({1:N0} dosya silindi, kullanımda veya korumalı {2:N0} dosya tutuldu).</value>
+  </data>
+  <data name="Freed {0} ({1:N0} files deleted)." xml:space="preserve">
+    <value>{0} boşaltıldı ({1:N0} dosya silindi).</value>
+  </data>
+  <data name="Filter by title or KB..." xml:space="preserve">
+    <value>Başlığa veya KB'ye göre süz...</value>
+  </data>
+  <data name="Failed only" xml:space="preserve">
+    <value>Yalnızca başarısızlar</value>
+  </data>
+  <data name="Date" xml:space="preserve">
+    <value>Tarih</value>
+  </data>
+  <data name="Update" xml:space="preserve">
+    <value>Güncelleştirme</value>
+  </data>
+  <data name="Operation" xml:space="preserve">
+    <value>İşlem</value>
+  </data>
+  <data name="Result" xml:space="preserve">
+    <value>Sonuç</value>
+  </data>
+  <data name="Error Code" xml:space="preserve">
+    <value>Hata Kodu</value>
+  </data>
+  <data name="Read-only (Windows Update Agent history, newest first, up to 500 entries)." xml:space="preserve">
+    <value>Salt okunur (Windows Update Agent geçmişi, en yeni önce, en fazla 500 kayıt).</value>
+  </data>
+  <data name="Reading Windows Update history..." xml:space="preserve">
+    <value>Windows Update geçmişi okunuyor...</value>
+  </data>
+  <data name="{0} entries, {1} failed." xml:space="preserve">
+    <value>{0} kayıt, {1} başarısız.</value>
+  </data>
+  <data name="value:AC power (plugged in)" xml:space="preserve">
+    <value>Şebeke (fişe takılı)</value>
+  </data>
+  <data name="value:Battery" xml:space="preserve">
+    <value>Pil</value>
+  </data>
+  <data name="value:Unknown" xml:space="preserve">
+    <value>Bilinmiyor</value>
+  </data>
+  <data name="value:Charging" xml:space="preserve">
+    <value>Şarj oluyor</value>
+  </data>
+  <data name="value:Discharging" xml:space="preserve">
+    <value>Deşarj oluyor</value>
+  </data>
+  <data name="value:Fully charged" xml:space="preserve">
+    <value>Tam dolu</value>
+  </data>
+  <data name="value:Plugged in, not charging" xml:space="preserve">
+    <value>Fişe takılı, şarj olmuyor</value>
+  </data>
+  <data name="value:No battery" xml:space="preserve">
+    <value>Pil yok</value>
+  </data>
+  <data name="value:Fixed" xml:space="preserve">
+    <value>Sabit</value>
+  </data>
+  <data name="value:Removable" xml:space="preserve">
+    <value>Çıkarılabilir</value>
+  </data>
+  <data name="value:Network" xml:space="preserve">
+    <value>Ağ</value>
+  </data>
+  <data name="value:CDRom" xml:space="preserve">
+    <value>CD-ROM</value>
+  </data>
+  <data name="value:Ram" xml:space="preserve">
+    <value>RAM</value>
+  </data>
+  <data name="value:NoRootDirectory" xml:space="preserve">
+    <value>Kök klasör yok</value>
+  </data>
+  <data name="value:Up" xml:space="preserve">
+    <value>Çalışıyor</value>
+  </data>
+  <data name="value:Down" xml:space="preserve">
+    <value>Kapalı</value>
+  </data>
+  <data name="value:Testing" xml:space="preserve">
+    <value>Test ediliyor</value>
+  </data>
+  <data name="value:Dormant" xml:space="preserve">
+    <value>Beklemede</value>
+  </data>
+  <data name="value:NotPresent" xml:space="preserve">
+    <value>Yok</value>
+  </data>
+  <data name="value:LowerLayerDown" xml:space="preserve">
+    <value>Alt katman kapalı</value>
+  </data>
+  <data name="value:Enabled" xml:space="preserve">
+    <value>Etkin</value>
+  </data>
+  <data name="value:Disabled" xml:space="preserve">
+    <value>Devre dışı</value>
+  </data>
+  <data name="value:Not available on this Windows" xml:space="preserve">
+    <value>Bu Windows'ta yok</value>
+  </data>
+  <data name="value:Locked out" xml:space="preserve">
+    <value>Kilitli</value>
+  </data>
+  <data name="value:Administrator" xml:space="preserve">
+    <value>Yönetici</value>
+  </data>
+  <data name="value:Standard user" xml:space="preserve">
+    <value>Standart kullanıcı</value>
+  </data>
+  <data name="value:Limited" xml:space="preserve">
+    <value>Kısıtlı</value>
+  </data>
+  <data name="value:User Temp" xml:space="preserve">
+    <value>Kullanıcı Temp</value>
+  </data>
+  <data name="value:Your temporary files (%TEMP%)." xml:space="preserve">
+    <value>Geçici dosyalarınız (%TEMP%).</value>
+  </data>
+  <data name="value:Windows Temp" xml:space="preserve">
+    <value>Windows Temp</value>
+  </data>
+  <data name="value:System temporary files (needs Administrator to clean most of them)." xml:space="preserve">
+    <value>Sistem geçici dosyaları (çoğunu temizlemek için Yönetici yetkisi gerekir).</value>
+  </data>
+  <data name="value:Thumbnail Cache" xml:space="preserve">
+    <value>Küçük Resim Önbelleği</value>
+  </data>
+  <data name="value:Explorer thumbnail cache; rebuilt automatically." xml:space="preserve">
+    <value>Gezgin küçük resim önbelleği; kendiliğinden yeniden oluşturulur.</value>
+  </data>
+  <data name="value:Edge Cache" xml:space="preserve">
+    <value>Edge Önbelleği</value>
+  </data>
+  <data name="value:Microsoft Edge web cache (all profiles)." xml:space="preserve">
+    <value>Microsoft Edge web önbelleği (tüm profiller).</value>
+  </data>
+  <data name="value:Chrome Cache" xml:space="preserve">
+    <value>Chrome Önbelleği</value>
+  </data>
+  <data name="value:Google Chrome web cache (all profiles)." xml:space="preserve">
+    <value>Google Chrome web önbelleği (tüm profiller).</value>
+  </data>
+  <data name="value:Firefox Cache" xml:space="preserve">
+    <value>Firefox Önbelleği</value>
+  </data>
+  <data name="value:Mozilla Firefox web cache (all profiles)." xml:space="preserve">
+    <value>Mozilla Firefox web önbelleği (tüm profiller).</value>
+  </data>
+  <data name="value:Error Reports" xml:space="preserve">
+    <value>Hata Raporları</value>
+  </data>
+  <data name="value:Windows Error Reporting archives and queues." xml:space="preserve">
+    <value>Windows Hata Bildirimi arşivleri ve kuyrukları.</value>
+  </data>
+  <data name="value:Crash Dumps" xml:space="preserve">
+    <value>Kilitlenme Dökümleri</value>
+  </data>
+  <data name="value:Memory dumps written when programs crash." xml:space="preserve">
+    <value>Programlar çöktüğünde yazılan bellek dökümleri.</value>
+  </data>
+  <data name="value:Listen" xml:space="preserve">
+    <value>Dinliyor</value>
+  </data>
+  <data name="value:Established" xml:space="preserve">
+    <value>Bağlı</value>
+  </data>
+  <data name="value:Closed" xml:space="preserve">
+    <value>Kapalı</value>
+  </data>
+  <data name="value:Install" xml:space="preserve">
+    <value>Yükleme</value>
+  </data>
+  <data name="value:Uninstall" xml:space="preserve">
+    <value>Kaldırma</value>
+  </data>
+  <data name="value:Other" xml:space="preserve">
+    <value>Diğer</value>
+  </data>
+  <data name="value:Not started" xml:space="preserve">
+    <value>Başlamadı</value>
+  </data>
+  <data name="value:In progress" xml:space="preserve">
+    <value>Sürüyor</value>
+  </data>
+  <data name="value:Succeeded" xml:space="preserve">
+    <value>Başarılı</value>
+  </data>
+  <data name="value:Succeeded with errors" xml:space="preserve">
+    <value>Hatalarla başarılı</value>
+  </data>
+  <data name="value:Failed" xml:space="preserve">
+    <value>Başarısız</value>
+  </data>
+  <data name="value:Aborted" xml:space="preserve">
+    <value>Durduruldu</value>
+  </data>
+  <data name="value:Critical" xml:space="preserve">
+    <value>Kritik</value>
+  </data>
+  <data name="value:Error" xml:space="preserve">
+    <value>Hata</value>
+  </data>
+  <data name="value:Warning" xml:space="preserve">
+    <value>Uyarı</value>
+  </data>
+  <data name="value:Information" xml:space="preserve">
+    <value>Bilgi</value>
+  </data>
+  <data name="value:System" xml:space="preserve">
+    <value>Sistem</value>
+  </data>
+  <data name="value:Application" xml:space="preserve">
+    <value>Uygulama</value>
+  </data>
+  <data name="value:Healthy" xml:space="preserve">
+    <value>Sağlıklı</value>
+  </data>
+  <data name="value:Unhealthy" xml:space="preserve">
+    <value>Sağlıksız</value>
+  </data>
+  <data name="value:Unspecified" xml:space="preserve">
+    <value>Belirtilmemiş</value>
+  </data>
+  <data name="value:Virtual" xml:space="preserve">
+    <value>Sanal</value>
+  </data>
+  <data name="value:File-backed virtual" xml:space="preserve">
+    <value>Dosya tabanlı sanal</value>
+  </data>
+  <data name="value:Storage Spaces" xml:space="preserve">
+    <value>Depolama Alanları</value>
+  </data>
+  <data name="value:OK" xml:space="preserve">
+    <value>Normal</value>
+  </data>
+  <data name="value:Degraded" xml:space="preserve">
+    <value>Bozulmuş</value>
+  </data>
+  <data name="value:Stressed" xml:space="preserve">
+    <value>Zorlanıyor</value>
+  </data>
+  <data name="value:Predictive failure" xml:space="preserve">
+    <value>Arıza öngörülüyor</value>
+  </data>
+  <data name="value:Non-recoverable error" xml:space="preserve">
+    <value>Kurtarılamaz hata</value>
+  </data>
+  <data name="value:Starting" xml:space="preserve">
+    <value>Başlıyor</value>
+  </data>
+  <data name="value:Stopping" xml:space="preserve">
+    <value>Duruyor</value>
+  </data>
+  <data name="value:Stopped" xml:space="preserve">
+    <value>Durdu</value>
+  </data>
+  <data name="value:In service" xml:space="preserve">
+    <value>Bakımda</value>
+  </data>
+  <data name="value:No contact" xml:space="preserve">
+    <value>İletişim yok</value>
+  </data>
+  <data name="value:Lost communication" xml:space="preserve">
+    <value>İletişim koptu</value>
+  </data>
+  <data name="value:Online" xml:space="preserve">
+    <value>Çevrimiçi</value>
+  </data>
+  <data name="value:Not ready" xml:space="preserve">
+    <value>Hazır değil</value>
+  </data>
+  <data name="value:No media" xml:space="preserve">
+    <value>Ortam yok</value>
+  </data>
+  <data name="value:Offline" xml:space="preserve">
+    <value>Çevrimdışı</value>
+  </data>
+</root>

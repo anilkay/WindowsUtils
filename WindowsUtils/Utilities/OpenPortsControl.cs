@@ -1,5 +1,6 @@
 using System.Data;
 using WindowsUtils.Core.Net;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -7,9 +8,9 @@ public class OpenPortsControl : UtilityControl
 {
     private readonly DataGridView _grid;
     private readonly DataTable _table = new();
-    private readonly TextBox _filterBox = new() { PlaceholderText = "Filter by process, port or address...", Width = 260 };
-    private readonly CheckBox _listeningOnly = new() { Text = "Listening only", AutoSize = true, Checked = true };
-    private readonly Button _refreshButton = new() { Text = "Refresh", AutoSize = true };
+    private readonly TextBox _filterBox = new() { PlaceholderText = L.T("Filter by process, port or address..."), Width = 260 };
+    private readonly CheckBox _listeningOnly = new() { Text = L.T("Listening only"), AutoSize = true, Checked = true };
+    private readonly Button _refreshButton = new() { Text = L.T("Refresh"), AutoSize = true };
     private readonly Label _statusLabel = new();
     private IReadOnlyList<PortEntry> _ports = [];
 
@@ -51,18 +52,18 @@ public class OpenPortsControl : UtilityControl
 
         _grid = CreateGrid();
         _grid.AutoGenerateColumns = false;
-        AddBoundColumn(_grid, "Protocol", "Protocol").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        var localAddress = AddBoundColumn(_grid, "LocalAddress", "Local Address");
+        AddBoundColumn(_grid, "Protocol", L.T("Protocol")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        var localAddress = AddBoundColumn(_grid, "LocalAddress", L.T("Local Address"));
         localAddress.FillWeight = 26;
         localAddress.MinimumWidth = 120;
-        AddBoundColumn(_grid, "LocalPort", "Local Port").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        var remoteAddress = AddBoundColumn(_grid, "RemoteAddress", "Remote Address");
+        AddBoundColumn(_grid, "LocalPort", L.T("Local Port")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        var remoteAddress = AddBoundColumn(_grid, "RemoteAddress", L.T("Remote Address"));
         remoteAddress.FillWeight = 26;
         remoteAddress.MinimumWidth = 120;
-        AddBoundColumn(_grid, "RemotePort", "Remote Port").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        AddBoundColumn(_grid, "State", "State").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        AddBoundColumn(_grid, "RemotePort", L.T("Remote Port")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        AddBoundColumn(_grid, "State", L.T("State")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
         AddBoundColumn(_grid, "ProcessId", "PID").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        var process = AddBoundColumn(_grid, "ProcessName", "Process");
+        var process = AddBoundColumn(_grid, "ProcessName", L.T("Process"));
         process.FillWeight = 22;
         process.MinimumWidth = 110;
         _grid.DataSource = _table;
@@ -71,7 +72,7 @@ public class OpenPortsControl : UtilityControl
         {
             Dock = DockStyle.Bottom,
             Height = 26,
-            Text = "Read-only (like netstat -ano). Process names of other users' services need Administrator.",
+            Text = L.T("Read-only (like netstat -ano). Process names of other users' services need Administrator."),
             TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(6, 0, 0, 0),
         };
@@ -86,7 +87,7 @@ public class OpenPortsControl : UtilityControl
     private async Task LoadAsync()
     {
         _refreshButton.Enabled = false;
-        _statusLabel.Text = "Reading connection tables...";
+        _statusLabel.Text = L.T("Reading connection tables...");
         try
         {
             var result = await Task.Run(OpenPorts.Get);
@@ -112,12 +113,12 @@ public class OpenPortsControl : UtilityControl
         foreach (var p in rows)
         {
             _table.Rows.Add(p.Protocol, p.LocalAddress, p.LocalPort, p.RemoteAddress,
-                p.RemotePort is int remote ? remote : DBNull.Value, p.State, p.ProcessId, p.ProcessName);
+                p.RemotePort is int remote ? remote : DBNull.Value, L.V(p.State), p.ProcessId, p.ProcessName);
         }
         _table.EndLoadData();
         ApplyFilter();
         var listening = _ports.Count(p => p.IsListening);
-        _statusLabel.Text = $"{listening} listening, {_ports.Count - listening} other connection(s).";
+        _statusLabel.Text = L.F("{0} listening, {1} other connection(s).", listening, _ports.Count - listening);
     }
 
     private void ApplyFilter()

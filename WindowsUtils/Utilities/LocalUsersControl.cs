@@ -1,4 +1,5 @@
 using WindowsUtils.Core.SystemInfo;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -10,13 +11,13 @@ public class LocalUsersControl : UtilityControl
     public LocalUsersControl()
     {
         _grid = CreateGrid();
-        _grid.Columns.Add("Name", "Name");
-        _grid.Columns.Add("FullName", "Full name");
-        _grid.Columns.Add("Status", "Status");
-        _grid.Columns.Add("Type", "Type");
-        _grid.Columns.Add("LastLogon", "Last logon");
-        _grid.Columns.Add("PasswordSet", "Password last set");
-        _grid.Columns.Add("Description", "Description");
+        _grid.Columns.Add("Name", L.T("Name"));
+        _grid.Columns.Add("FullName", L.T("Full name"));
+        _grid.Columns.Add("Status", L.T("Status"));
+        _grid.Columns.Add("Type", L.T("Type"));
+        _grid.Columns.Add("LastLogon", L.T("Last logon"));
+        _grid.Columns.Add("PasswordSet", L.T("Password last set"));
+        _grid.Columns.Add("Description", L.T("Description"));
         MakeUnsortable(_grid);
 
         var toolbar = new FlowLayoutPanel
@@ -27,9 +28,9 @@ public class LocalUsersControl : UtilityControl
             WrapContents = false,
             Padding = new Padding(4),
         };
-        var addButton = new Button { Text = "Add User...", AutoSize = true, Margin = new Padding(4, 6, 4, 4) }.AsAccent();
-        var refreshButton = new Button { Text = "Refresh", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
-        var deleteButton = new Button { Text = "Delete User", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
+        var addButton = new Button { Text = L.T("Add User..."), AutoSize = true, Margin = new Padding(4, 6, 4, 4) }.AsAccent();
+        var refreshButton = new Button { Text = L.T("Refresh"), AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
+        var deleteButton = new Button { Text = L.T("Delete User"), AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
         deleteButton.Click += (_, _) => DeleteSelectedUser();
         addButton.Click += (_, _) => ShowAddUserWizard();
         refreshButton.Click += (_, _) => LoadAccounts();
@@ -41,7 +42,7 @@ public class LocalUsersControl : UtilityControl
         _note.Height = 26;
         _note.TextAlign = ContentAlignment.MiddleLeft;
         _note.Padding = new Padding(6, 0, 0, 0);
-        _note.Text = "Read-only view of the local user accounts on this PC (domain accounts are not listed).";
+        _note.Text = L.T("Read-only view of the local user accounts on this PC (domain accounts are not listed).");
 
         Controls.Add(_grid);
         Controls.Add(_note);
@@ -60,19 +61,19 @@ public class LocalUsersControl : UtilityControl
                 var row = _grid.Rows.Add(
                     a.Name,
                     a.FullName,
-                    LocalUsers.FormatStatus(a),
-                    LocalUsers.FormatType(a),
-                    a.LastLogon?.ToString("g") ?? "Never",
+                    L.V(LocalUsers.FormatStatus(a)),
+                    L.V(LocalUsers.FormatType(a)),
+                    a.LastLogon?.ToString("g") ?? L.T("Never"),
                     a.PasswordLastSet?.ToString("g") ?? "",
                     a.Description);
                 if (!a.Enabled)
                     _grid.Rows[row].DefaultCellStyle.ForeColor = Theme.SubtleText;
             }
-            _note.Text = "Read-only view of the local user accounts on this PC (domain accounts are not listed).";
+            _note.Text = L.T("Read-only view of the local user accounts on this PC (domain accounts are not listed).");
         }
         catch (Exception ex)
         {
-            _note.Text = $"Could not read user accounts: {ex.Message}";
+            _note.Text = L.F("Could not read user accounts: {0}", ex.Message);
         }
     }
 
@@ -82,23 +83,23 @@ public class LocalUsersControl : UtilityControl
             return;
         if (name.Equals(Environment.UserName, StringComparison.OrdinalIgnoreCase))
         {
-            MessageBox.Show("You cannot delete the account you are currently signed in with.", "Delete User",
+            MessageBox.Show(L.T("You cannot delete the account you are currently signed in with."), L.T("Delete User"),
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
-        if (MessageBox.Show($"Delete the local user '{name}'? This cannot be undone.", "Delete User",
+        if (MessageBox.Show(L.F("Delete the local user '{0}'? This cannot be undone.", name), L.T("Delete User"),
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
             return;
 
         var result = UserManagement.DeleteUser(name);
         if (result.IsSuccess)
         {
-            _note.Text = $"Account '{name}' deleted.";
+            _note.Text = L.F("Account '{0}' deleted.", name);
             LoadAccounts();
         }
         else
         {
-            _note.Text = $"Could not delete '{name}': {result.Errors[0].Message}";
+            _note.Text = L.F("Could not delete '{0}': {1}", name, result.Errors[0].Message);
         }
     }
 
@@ -108,7 +109,7 @@ public class LocalUsersControl : UtilityControl
         wizard.ShowDialog(this);
         if (wizard.WasCreated)
         {
-            _note.Text = $"Account '{wizard.Result?.Name}' created.";
+            _note.Text = L.F("Account '{0}' created.", wizard.Result?.Name);
             LoadAccounts();
         }
     }

@@ -1,4 +1,5 @@
 using WindowsUtils.Core.SystemInfo;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -23,7 +24,7 @@ public class DiskHealthControl : UtilityControl
     ];
 
     private readonly DataGridView _grid;
-    private readonly Button _refreshButton = new() { Text = "Refresh", AutoSize = true };
+    private readonly Button _refreshButton = new() { Text = L.T("Refresh"), AutoSize = true };
     private readonly Label _statusLabel = new();
 
     public DiskHealthControl()
@@ -52,7 +53,7 @@ public class DiskHealthControl : UtilityControl
         {
             Dock = DockStyle.Bottom,
             Height = 26,
-            Text = "Read-only. Temperature, wear and error counters need Administrator and a drive that reports them.",
+            Text = L.T("Read-only. Temperature, wear and error counters need Administrator and a drive that reports them."),
             TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(6, 0, 0, 0),
         };
@@ -67,7 +68,7 @@ public class DiskHealthControl : UtilityControl
     private async Task LoadAsync()
     {
         _refreshButton.Enabled = false;
-        _statusLabel.Text = "Reading disk health...";
+        _statusLabel.Text = L.T("Reading disk health...");
         try
         {
             var result = await Task.Run(DiskHealth.Get);
@@ -81,8 +82,8 @@ public class DiskHealthControl : UtilityControl
             Fill(disks);
             var attention = disks.Count(d => d.NeedsAttention);
             _statusLabel.Text = attention == 0
-                ? $"{disks.Count} disk(s), all healthy."
-                : $"{disks.Count} disk(s), {attention} need attention.";
+                ? L.F("{0} disk(s), all healthy.", disks.Count)
+                : L.F("{0} disk(s), {1} need attention.", disks.Count, attention);
         }
         finally
         {
@@ -94,18 +95,18 @@ public class DiskHealthControl : UtilityControl
     {
         _grid.Rows.Clear();
         _grid.Columns.Clear();
-        var property = new DataGridViewTextBoxColumn { Name = "Property", HeaderText = "", FillWeight = 30 };
+        var property = new DataGridViewTextBoxColumn { Name = "Property", HeaderText = "", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells };
         property.DefaultCellStyle.ForeColor = Theme.SubtleText;
         _grid.Columns.Add(property);
         foreach (var disk in disks)
-            _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = $"Disk {disk.DeviceId}", FillWeight = 70f / Math.Max(1, disks.Count) });
+            _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = L.F("Disk {0}", disk.DeviceId), FillWeight = 70f / Math.Max(1, disks.Count) });
         MakeUnsortable(_grid);
 
         var values = disks.Select(Values).ToList();
         for (var row = 0; row < Properties.Length; row++)
         {
             var cells = new object[disks.Count + 1];
-            cells[0] = Properties[row];
+            cells[0] = L.T(Properties[row]);
             for (var d = 0; d < disks.Count; d++)
                 cells[d + 1] = values[d][row];
             _grid.Rows.Add(cells);
@@ -132,12 +133,12 @@ public class DiskHealthControl : UtilityControl
     private static string[] Values(DiskHealthInfo d) =>
     [
         d.Name,
-        $"{d.MediaType}, {d.BusType}",
+        $"{L.V(d.MediaType)}, {L.V(d.BusType)}",
         FormatBytes(d.SizeBytes),
-        d.Health,
-        d.OperationalStatus,
-        d.PredictsFailure switch { true => "Failure predicted", false => "No failure predicted", null => NotReported },
-        d.TemperatureC is { } t ? $"{t} °C" + (d.TemperatureMaxC is { } max ? $" (max {max} °C)" : "") : NotReported,
+        L.V(d.Health),
+        string.Join(", ", d.OperationalStatus.Split(", ").Select(L.V)),
+        d.PredictsFailure switch { true => L.T("Failure predicted"), false => L.T("No failure predicted"), null => NotReported },
+        d.TemperatureC is { } t ? $"{t} °C" + (d.TemperatureMaxC is { } max ? " " + L.F("(max {0} °C)", max) : "") : NotReported,
         d.WearPercent is { } w ? $"{w}%" : NotReported,
         d.PowerOnHours is { } h ? $"{h:N0}" : NotReported,
         d.ReadErrorsUncorrected?.ToString("N0") ?? NotReported,
@@ -145,5 +146,5 @@ public class DiskHealthControl : UtilityControl
         d.StartStopCycles?.ToString("N0") ?? NotReported,
     ];
 
-    private const string NotReported = "Not reported";
+    private static string NotReported => L.T("Not reported");
 }

@@ -1,16 +1,17 @@
 using WindowsUtils.Core.Net;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
 public class TcpTracerouteControl : UtilityControl
 {
-    private readonly TextBox _hostBox = new() { PlaceholderText = "Host (e.g. google.com)", Width = 260 };
+    private readonly TextBox _hostBox = new() { PlaceholderText = L.T("Host (e.g. google.com)"), Width = 260 };
     private readonly NumericUpDown _portBox = new() { Minimum = 1, Maximum = 65535, Value = 80, Width = 70 };
     private readonly NumericUpDown _hopsBox = new() { Minimum = 1, Maximum = 64, Value = 30, Width = 55 };
     private readonly NumericUpDown _timeoutBox = new() { Minimum = 500, Maximum = 10000, Increment = 500, Value = 3000, Width = 75 };
-    private readonly CheckBox _dnsCheck = new() { Text = "Hostnames", Checked = true, AutoSize = true };
-    private readonly Button _traceButton = new() { Text = "Trace", AutoSize = true };
-    private readonly Button _cancelButton = new() { Text = "Cancel", AutoSize = true, Enabled = false };
+    private readonly CheckBox _dnsCheck = new() { Text = L.T("Hostnames"), Checked = true, AutoSize = true };
+    private readonly Button _traceButton = new() { Text = L.T("Trace"), AutoSize = true };
+    private readonly Button _cancelButton = new() { Text = L.T("Cancel"), AutoSize = true, Enabled = false };
     private readonly DataGridView _grid;
     private readonly Label _statusLabel = new();
     private CancellationTokenSource? _cts;
@@ -26,16 +27,16 @@ public class TcpTracerouteControl : UtilityControl
             Padding = new Padding(4),
         };
 
-        topPanel.Controls.Add(new Label { Text = "Host:", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
+        topPanel.Controls.Add(new Label { Text = L.T("Host:"), AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
         _hostBox.Margin = new Padding(4, 8, 4, 4);
         topPanel.Controls.Add(_hostBox);
-        topPanel.Controls.Add(new Label { Text = "Port:", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
+        topPanel.Controls.Add(new Label { Text = L.T("Port:"), AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
         _portBox.Margin = new Padding(4, 8, 4, 4);
         topPanel.Controls.Add(_portBox);
-        topPanel.Controls.Add(new Label { Text = "Hops:", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
+        topPanel.Controls.Add(new Label { Text = L.T("Hops:"), AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
         _hopsBox.Margin = new Padding(4, 8, 4, 4);
         topPanel.Controls.Add(_hopsBox);
-        topPanel.Controls.Add(new Label { Text = "Timeout (ms):", AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
+        topPanel.Controls.Add(new Label { Text = L.T("Timeout (ms):"), AutoSize = true, Margin = new Padding(4, 9, 0, 4) });
         _timeoutBox.Margin = new Padding(4, 8, 4, 4);
         topPanel.Controls.Add(_timeoutBox);
         _dnsCheck.Margin = new Padding(4, 10, 4, 4);
@@ -51,9 +52,9 @@ public class TcpTracerouteControl : UtilityControl
         _cancelButton.Click += (_, _) => _cts?.Cancel();
 
         _grid = CreateGrid();
-        _grid.Columns.Add("Hop", "Hop");
-        _grid.Columns.Add("Address", "IP Address");
-        _grid.Columns.Add("Hostname", "Hostname");
+        _grid.Columns.Add("Hop", L.T("Hop"));
+        _grid.Columns.Add("Address", L.T("IP Address"));
+        _grid.Columns.Add("Hostname", L.T("Hostname"));
         _grid.Columns.Add("Rtt1", "RTT 1");
         _grid.Columns.Add("Rtt2", "RTT 2");
         _grid.Columns.Add("Rtt3", "RTT 3");
@@ -67,7 +68,7 @@ public class TcpTracerouteControl : UtilityControl
         {
             Dock = DockStyle.Bottom,
             Height = 26,
-            Text = "TCP traceroute needs Administrator privileges (raw socket for ICMP replies).",
+            Text = L.T("TCP traceroute needs Administrator privileges (raw socket for ICMP replies)."),
             TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(6, 0, 0, 0),
         };
@@ -82,7 +83,7 @@ public class TcpTracerouteControl : UtilityControl
         var host = _hostBox.Text.Trim();
         if (host.Length == 0)
         {
-            _statusLabel.Text = "Enter a host first.";
+            _statusLabel.Text = L.T("Enter a host first.");
             return;
         }
 
@@ -99,7 +100,7 @@ public class TcpTracerouteControl : UtilityControl
         {
             _grid.Rows.Add(hop.Ttl, hop.Address ?? "*", hop.HostName ?? "",
                 Rtt(hop.Rtt1Ms), Rtt(hop.Rtt2Ms), Rtt(hop.Rtt3Ms));
-            _statusLabel.Text = $"Tracing... hop {hop.Ttl}/{maxHops}";
+            _statusLabel.Text = L.F("Tracing... hop {0}/{1}", hop.Ttl, maxHops);
         });
 
         try
@@ -108,23 +109,23 @@ public class TcpTracerouteControl : UtilityControl
                 (int)_timeoutBox.Value, _dnsCheck.Checked, progress, token);
             if (hops.Count == 0)
             {
-                _statusLabel.Text = "No hops.";
+                _statusLabel.Text = L.T("No hops.");
             }
             else
             {
                 var last = hops[^1];
                 _statusLabel.Text = last.Note == "Reached"
-                    ? $"Reached {last.Address} in {hops.Count} hop(s)."
-                    : $"Finished: target not reached within {hops.Count} hop(s).";
+                    ? L.F("Reached {0} in {1} hop(s).", last.Address, hops.Count)
+                    : L.F("Finished: target not reached within {0} hop(s).", hops.Count);
             }
         }
         catch (OperationCanceledException)
         {
-            _statusLabel.Text = "Cancelled.";
+            _statusLabel.Text = L.T("Cancelled.");
         }
         catch (Exception ex)
         {
-            _statusLabel.Text = $"Error: {ex.Message}";
+            _statusLabel.Text = L.F("Error: {0}", ex.Message);
         }
         finally
         {

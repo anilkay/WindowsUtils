@@ -1,5 +1,6 @@
 using System.Data;
 using WindowsUtils.Core.IO;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -27,12 +28,12 @@ public class FolderSizeControl : UtilityControl
 
         var pathBox = new TextBox
         {
-            PlaceholderText = "Select a folder...",
+            PlaceholderText = L.T("Select a folder..."),
             Width = 420,
             Margin = new Padding(4, 8, 4, 4),
         };
-        var browseButton = new Button { Text = "Browse...", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
-        var analyzeButton = new Button { Text = "Analyze", AutoSize = true, Margin = new Padding(4, 6, 4, 4) }.AsAccent();
+        var browseButton = new Button { Text = L.T("Browse..."), AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
+        var analyzeButton = new Button { Text = L.T("Analyze"), AutoSize = true, Margin = new Padding(4, 6, 4, 4) }.AsAccent();
         _statusLabel.AutoSize = true;
         _statusLabel.Margin = new Padding(12, 12, 4, 4);
 
@@ -71,7 +72,7 @@ public class FolderSizeControl : UtilityControl
     {
         if (!Directory.Exists(path))
         {
-            _statusLabel.Text = "Select an existing folder.";
+            _statusLabel.Text = L.T("Select an existing folder.");
             return;
         }
 
@@ -79,24 +80,24 @@ public class FolderSizeControl : UtilityControl
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
-        _statusLabel.Text = "Analyzing...";
+        _statusLabel.Text = L.T("Analyzing...");
         _table.Rows.Clear();
         try
         {
             var rows = await Task.Run(() => FileScanner.GetFolderContents(path, token), token);
 
             foreach (var item in rows)
-                _table.Rows.Add(item.Name, item.IsFolder ? "Folder" : "File", item.Size);
+                _table.Rows.Add(item.Name, item.IsFolder ? L.T("Folder") : L.T("File"), item.Size);
             _table.DefaultView.Sort = "Size DESC";
 
-            _statusLabel.Text = $"Done: {rows.Count} items, total {FormatBytes(rows.Sum(r => r.Size))}.";
+            _statusLabel.Text = L.F("Done: {0} items, total {1}.", rows.Count, FormatBytes(rows.Sum(r => r.Size)));
         }
         catch (OperationCanceledException)
         {
         }
         catch (Exception ex)
         {
-            _statusLabel.Text = $"Error: {ex.Message}";
+            _statusLabel.Text = L.F("Error: {0}", ex.Message);
         }
     }
 }

@@ -1,5 +1,6 @@
 using System.Data;
 using WindowsUtils.Core.SystemInfo;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -7,8 +8,8 @@ public class InstalledProgramsControl : UtilityControl
 {
     private readonly DataGridView _grid;
     private readonly DataTable _table = new();
-    private readonly TextBox _filterBox = new() { PlaceholderText = "Filter by name or publisher...", Width = 260 };
-    private readonly Button _refreshButton = new() { Text = "Refresh", AutoSize = true };
+    private readonly TextBox _filterBox = new() { PlaceholderText = L.T("Filter by name or publisher..."), Width = 260 };
+    private readonly Button _refreshButton = new() { Text = L.T("Refresh"), AutoSize = true };
     private readonly Label _statusLabel = new();
 
     public InstalledProgramsControl()
@@ -45,16 +46,16 @@ public class InstalledProgramsControl : UtilityControl
 
         _grid = CreateGrid();
         _grid.AutoGenerateColumns = false;
-        AddBoundColumn(_grid, "Name", "Name").FillWeight = 50;
-        AddBoundColumn(_grid, "Version", "Version").FillWeight = 22;
-        AddBoundColumn(_grid, "Publisher", "Publisher").FillWeight = 28;
+        AddBoundColumn(_grid, "Name", L.T("Name")).FillWeight = 50;
+        AddBoundColumn(_grid, "Version", L.T("Version")).FillWeight = 22;
+        AddBoundColumn(_grid, "Publisher", L.T("Publisher")).FillWeight = 28;
         // Short values: sized to their content so they are never cut off; Name and Publisher share the rest.
-        AddBoundColumn(_grid, "Size", "Size").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        var installed = AddBoundColumn(_grid, "Installed", "Installed");
+        AddBoundColumn(_grid, "Size", L.T("Size")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        var installed = AddBoundColumn(_grid, "Installed", L.T("Installed"));
         installed.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
         installed.DefaultCellStyle.Format = "d";
-        AddBoundColumn(_grid, "Scope", "Scope").AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-        AddBoundColumn(_grid, "Location", "Location").Visible = false;
+        AddBoundColumn(_grid, "Scope", L.T("Scope")).AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        AddBoundColumn(_grid, "Location", L.T("Location")).Visible = false;
         _grid.DataSource = _table;
         _grid.CellFormatting += (_, e) =>
         {
@@ -74,7 +75,7 @@ public class InstalledProgramsControl : UtilityControl
         {
             Dock = DockStyle.Bottom,
             Height = 26,
-            Text = "Read-only (registry Uninstall keys). Click a header to sort. Blank size/date: not recorded by the installer.",
+            Text = L.T("Read-only (registry Uninstall keys). Click a header to sort. Blank size/date: not recorded by the installer."),
             TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(6, 0, 0, 0),
         };
@@ -89,7 +90,7 @@ public class InstalledProgramsControl : UtilityControl
     private async Task LoadAsync()
     {
         _refreshButton.Enabled = false;
-        _statusLabel.Text = "Reading installed programs...";
+        _statusLabel.Text = L.T("Reading installed programs...");
         try
         {
             var programs = await Task.Run(InstalledPrograms.Get);
@@ -102,11 +103,11 @@ public class InstalledProgramsControl : UtilityControl
             }
             _table.EndLoadData();
             ApplyFilter();
-            _statusLabel.Text = $"{programs.Count} programs, {FormatBytes(programs.Sum(p => p.SizeBytes ?? 0))} reported size.";
+            _statusLabel.Text = L.F("{0} programs, {1} reported size.", programs.Count, FormatBytes(programs.Sum(p => p.SizeBytes ?? 0)));
         }
         catch (Exception ex)
         {
-            _statusLabel.Text = $"Error: {ex.GetBaseException().Message}";
+            _statusLabel.Text = L.F("Error: {0}", ex.GetBaseException().Message);
         }
         finally
         {

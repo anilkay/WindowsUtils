@@ -17,6 +17,8 @@ static class Program
         // see https://aka.ms/applicationconfiguration.
         ApplicationConfiguration.Initialize();
         ConfigureLogging();
+        // UI language: the one picked in the sidebar, else the Windows display language.
+        Localization.LanguageSettings.Apply();
         // Follow the Windows light/dark setting; Theme picks matching colors.
         Application.SetColorMode(SystemColorMode.System);
         Theme.Initialize();

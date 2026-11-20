@@ -1,5 +1,6 @@
 using System.Text;
 using WindowsUtils.Core.Net;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -10,16 +11,16 @@ public class NetworkInfoControl : UtilityControl
     public NetworkInfoControl()
     {
         var grid = CreateGrid();
-        grid.Columns.Add("Adapter", "Adapter");
-        grid.Columns.Add("Type", "Type");
-        grid.Columns.Add("Status", "Status");
+        grid.Columns.Add("Adapter", L.T("Adapter"));
+        grid.Columns.Add("Type", L.T("Type"));
+        grid.Columns.Add("Status", L.T("Status"));
         grid.Columns.Add("IPv4", "IPv4");
         grid.Columns.Add("IPv6", "IPv6");
         grid.Columns.Add("MAC", "MAC");
         MakeUnsortable(grid);
 
         foreach (var adapter in NetworkInfo.GetAdapters())
-            grid.Rows.Add(adapter.Name, adapter.Type, adapter.Status, adapter.IPv4, adapter.IPv6, adapter.Mac);
+            grid.Rows.Add(adapter.Name, adapter.Type, L.V(adapter.Status), adapter.IPv4, adapter.IPv6, adapter.Mac);
 
         var pingPanel = new FlowLayoutPanel
         {
@@ -32,11 +33,11 @@ public class NetworkInfoControl : UtilityControl
 
         var hostBox = new TextBox
         {
-            PlaceholderText = "Host to ping (e.g. 8.8.8.8)",
+            PlaceholderText = L.T("Host to ping (e.g. 8.8.8.8)"),
             Width = 220,
             Margin = new Padding(4, 8, 4, 4),
         };
-        var pingButton = new Button { Text = "Ping", AutoSize = true, Margin = new Padding(4, 6, 4, 4) }.AsAccent();
+        var pingButton = new Button { Text = L.T("Ping"), AutoSize = true, Margin = new Padding(4, 6, 4, 4) }.AsAccent();
         _pingResult.AutoSize = true;
         _pingResult.Margin = new Padding(12, 10, 4, 4);
 
@@ -54,26 +55,26 @@ public class NetworkInfoControl : UtilityControl
     {
         if (string.IsNullOrWhiteSpace(host))
         {
-            _pingResult.Text = "Enter a host first.";
+            _pingResult.Text = L.T("Enter a host first.");
             return;
         }
 
         button.Enabled = false;
-        _pingResult.Text = $"Pinging {host}...";
+        _pingResult.Text = L.F("Pinging {0}...", host);
         try
         {
             var builder = new StringBuilder();
             foreach (var reply in await NetworkInfo.PingAsync(host))
             {
                 builder.AppendLine(reply.Success
-                    ? $"Reply from {reply.Address}: time={reply.RoundtripMs}ms"
-                    : $"Request failed: {reply.Status}");
+                    ? L.F("Reply from {0}: time={1}ms", reply.Address, reply.RoundtripMs)
+                    : L.F("Request failed: {0}", reply.Status));
             }
             _pingResult.Text = builder.ToString();
         }
         catch (Exception ex)
         {
-            _pingResult.Text = $"Ping failed: {ex.Message}";
+            _pingResult.Text = L.F("Ping failed: {0}", ex.Message);
         }
         finally
         {

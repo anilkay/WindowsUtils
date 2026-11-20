@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using WindowsUtils.Core.Hashing;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -30,12 +31,12 @@ public class FileHashControl : UtilityControl
             Padding = new Padding(4),
         };
 
-        _pathBox.PlaceholderText = "Select a file...";
+        _pathBox.PlaceholderText = L.T("Select a file...");
         _pathBox.Width = 420;
         _pathBox.Margin = new Padding(4, 8, 4, 4);
 
-        var browseButton = new Button { Text = "Browse...", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
-        _computeButton.Text = "Compute Hashes";
+        var browseButton = new Button { Text = L.T("Browse..."), AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
+        _computeButton.Text = L.T("Compute Hashes");
         _computeButton.AutoSize = true;
         _computeButton.AsAccent();
         _computeButton.Margin = new Padding(4, 6, 4, 4);
@@ -55,7 +56,7 @@ public class FileHashControl : UtilityControl
             WrapContents = false,
             Padding = new Padding(8, 4, 4, 4),
         };
-        optionsPanel.Controls.Add(new Label { Text = "Algorithms:", AutoSize = true, Margin = new Padding(4, 4, 4, 4) });
+        optionsPanel.Controls.Add(new Label { Text = L.T("Algorithms:"), AutoSize = true, Margin = new Padding(4, 4, 4, 4) });
         optionsPanel.Controls.Add(_md5Check);
         optionsPanel.Controls.Add(_sha1Check);
         optionsPanel.Controls.Add(_sha256Check);
@@ -79,9 +80,9 @@ public class FileHashControl : UtilityControl
         AddRow(layout, 2, "SHA-256", _sha256Box);
         AddRow(layout, 3, "SHA-512", _sha512Box);
 
-        _verifyBox.PlaceholderText = "Paste a hash here to verify...";
+        _verifyBox.PlaceholderText = L.T("Paste a hash here to verify...");
         _verifyBox.TextChanged += (_, _) => Verify();
-        AddRow(layout, 4, "Verify", _verifyBox);
+        AddRow(layout, 4, L.T("Verify"), _verifyBox);
 
         _verifyLabel.Dock = DockStyle.Fill;
         _verifyLabel.TextAlign = ContentAlignment.MiddleLeft;
@@ -107,7 +108,7 @@ public class FileHashControl : UtilityControl
 
     private void Browse()
     {
-        using var dialog = new OpenFileDialog { Filter = "All files (*.*)|*.*" };
+        using var dialog = new OpenFileDialog { Filter = L.T("All files (*.*)|*.*") };
         if (dialog.ShowDialog() == DialogResult.OK)
         {
             _pathBox.Text = dialog.FileName;
@@ -120,7 +121,7 @@ public class FileHashControl : UtilityControl
         var path = _pathBox.Text.Trim();
         if (!File.Exists(path))
         {
-            MessageBox.Show("Select an existing file first.", "File Hash", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(L.T("Select an existing file first."), L.T("File Hash"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -139,18 +140,18 @@ public class FileHashControl : UtilityControl
             selected.Add(HashAlgorithmName.SHA512);
         if (selected.Count == 0)
         {
-            MessageBox.Show("Select at least one hash algorithm.", "File Hash", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(L.T("Select at least one hash algorithm."), L.T("File Hash"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
         _computeButton.Enabled = false;
-        _computeButton.Text = "Computing...";
+        _computeButton.Text = L.T("Computing...");
         try
         {
             var result = await FileHasher.ComputeHashesAsync(path, selected, token);
             if (result.IsFailed)
             {
-                MessageBox.Show($"Failed to hash file: {result.Errors[0].Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(L.F("Failed to hash file: {0}", result.Errors[0].Message), L.T("Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             var hashes = result.Value;
@@ -165,12 +166,12 @@ public class FileHashControl : UtilityControl
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to hash file: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(L.F("Failed to hash file: {0}", ex.Message), L.T("Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
             _computeButton.Enabled = true;
-            _computeButton.Text = "Compute Hashes";
+            _computeButton.Text = L.T("Compute Hashes");
         }
     }
 
@@ -195,13 +196,13 @@ public class FileHashControl : UtilityControl
         {
             if (hash.Length > 0 && hash == input)
             {
-                _verifyLabel.Text = $"MATCH: the file matches the provided {name} hash.";
+                _verifyLabel.Text = L.F("MATCH: the file matches the provided {0} hash.", name);
                 _verifyLabel.ForeColor = Theme.Success;
                 return;
             }
         }
 
-        _verifyLabel.Text = "NO MATCH with any computed hash.";
+        _verifyLabel.Text = L.T("NO MATCH with any computed hash.");
         _verifyLabel.ForeColor = Theme.Danger;
     }
 }

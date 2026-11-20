@@ -57,6 +57,11 @@ WindowsUtils/            # WinForms app (net10.0-windows), references Core
 ├── Program.cs            # entry point, launches MainForm
 ├── MainForm.cs           # shell: owner-drawn sidebar nav + page header + content panel
 ├── Theme.cs              # Windows 11 style colors/fonts, light/dark, accent, button/grid styling
+├── Localization/
+│   ├── L.cs              # L.T(text) / L.F(format, args) / L.V(coreValue): UI text lookup, the English text is the key
+│   ├── LanguageSettings.cs # saved UI language (%AppData%\WindowsUtils\settings.json), applied at startup; returns Result
+│   ├── Strings.resx      # neutral (English), intentionally empty
+│   └── Strings.tr.resx   # Turkish translations
 └── Utilities/
     ├── UtilityControl.cs # abstract base for all utility screens (shared helpers)
     └── *Control.cs       # one self-contained UserControl per utility
@@ -76,6 +81,13 @@ Current utilities: System Information, Update History, Event Log Summary, Disk I
 - **Every screen is also an AI tool**: whatever a utility screen can show must also be available to AI Chat as a tool in `PcTools` (registered in `PcTools.CreateTools()`). Tools call the same Core logic as the screen, are read-only (no delete, write or registry changes; destructive actions stay in the UI behind a confirmation), pass model-chosen paths through `ResolveDirectory` / `ToLocalPath`, and cap their output. Long scans take a `CancellationToken` parameter (AIFunctionFactory binds it and hides it from the model).
 - **Tools that return private data need the user's permission**: tools that return file contents or environment variable values (`ReadTextFile`, `GetEnvironmentVariable`) are registered as `new ApprovalRequiredAIFunction(...)`. `ChatSession.StreamResponseAsync` stops before running them and asks its `approveToolCall` callback (`ChatControl` shows a Yes/No box, default No, naming the file or variable and the endpoint host); without a callback they are declined. Listing tools (names, sizes) run without asking.
 - **MCP server**: `PcTools.CreateTools()` is the single tool list (function + `NeedsApproval`/`OpenWorld` flags) used by both the chat agent and `McpServerHost` (started/stopped by a button on the AI Chat screen). The MCP path keeps the same approval rule via a gate that asks the `approveToolCall` callback (declines without one) and exposes the agent itself as `ask_windows_utils_agent` (`ChatSession.StreamResponseAsync` with one-shot sessions). It binds loopback only (`http://localhost:5199/mcp`, no silent port fallback), requires a per-start bearer token (`McpServerHost.Token`, shown with a ready `mcp.json` snippet — reconfigure clients after each restart), rejects browser requests whose `Host`/`Origin` is not the server's own loopback origin (403, DNS-rebinding guard), uses the streamable HTTP transport, and needs the ASP.NET Core runtime (comes with the SDK; machines with only the Desktop Runtime can't start the app). Tools are annotated `ReadOnly` + non-`Destructive`; the network tools and the agent are `OpenWorld`.
+
+## Localization (Turkish + English)
+
+- **Every user-visible UI string goes through `L`** (`WindowsUtils/Localization/L.cs`): `L.T("Refresh")` for plain text, `L.F("{0} programs, {1} reported size.", count, size)` instead of `$"..."` interpolation (keep whole sentences in one format string so word order can change), and `L.V(value)` for English values that come from Core (states, health, operation names; stored as `value:<English>` entries). The key is the English text, so a missing translation just shows English.
+- **Add the Turkish text** to `Localization/Strings.tr.resx` for each new key (keep `{0}`/`{1:N0}` placeholders), then run `pwsh tools/Check-Translations.ps1`; it lists keys without a translation. Resource names are case-insensitive: two keys that differ only in case break the build with MSB3568.
+- **Language**: `LanguageSettings.Apply()` (in `Program.Main`) sets `CultureInfo.DefaultThreadCurrentUICulture` from the picker at the bottom of the sidebar, or leaves the Windows display language. Only the UI culture changes; dates and numbers keep the Windows regional format. A change asks to restart the app.
+- **Not translated on purpose**: AI Chat tool output (`PcTools`), the MCP server, the `wutils` CLI, Core `Result` error messages and log messages stay English: the model reads tool text, scripts parse CLI output, and logs are for us.
 
 ## Error handling: Railway Oriented Programming
 

@@ -1,3 +1,4 @@
+using WindowsUtils.Localization;
 namespace WindowsUtils.Utilities;
 
 public class DiskInfoControl : UtilityControl
@@ -5,13 +6,13 @@ public class DiskInfoControl : UtilityControl
     public DiskInfoControl()
     {
         var grid = CreateGrid();
-        grid.Columns.Add("Drive", "Drive");
-        grid.Columns.Add("Label", "Label");
-        grid.Columns.Add("Type", "Type");
-        grid.Columns.Add("Format", "Format");
-        grid.Columns.Add("Total", "Total");
-        grid.Columns.Add("Free", "Free");
-        grid.Columns.Add("FreePercent", "Free %");
+        grid.Columns.Add("Drive", L.T("Drive"));
+        grid.Columns.Add("Label", L.T("Label"));
+        grid.Columns.Add("Type", L.T("Type"));
+        grid.Columns.Add("Format", L.T("Format"));
+        grid.Columns.Add("Total", L.T("Total"));
+        grid.Columns.Add("Free", L.T("Free"));
+        grid.Columns.Add("FreePercent", L.T("Free %"));
         MakeUnsortable(grid);
 
         foreach (var drive in DriveInfo.GetDrives())
@@ -35,7 +36,7 @@ public class DiskInfoControl : UtilityControl
             }
             catch (Exception)
             {
-                grid.Rows.Add(drive.Name, "(not ready)", drive.DriveType.ToString(), "-", "-", "-", "-");
+                grid.Rows.Add(drive.Name, L.T("(not ready)"), L.V(drive.DriveType.ToString()), "-", "-", "-", "-");
             }
         }
 

@@ -1,5 +1,6 @@
 using System.Data;
 using WindowsUtils.Core.Net;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -7,8 +8,8 @@ public class FirewallPortsControl : UtilityControl
 {
     private readonly DataGridView _grid;
     private readonly DataTable _table = new();
-    private readonly TextBox _filterBox = new() { PlaceholderText = "Filter by rule name or port...", Width = 260 };
-    private readonly Button _refreshButton = new() { Text = "Refresh", AutoSize = true };
+    private readonly TextBox _filterBox = new() { PlaceholderText = L.T("Filter by rule name or port..."), Width = 260 };
+    private readonly Button _refreshButton = new() { Text = L.T("Refresh"), AutoSize = true };
     private readonly Label _statusLabel = new();
 
     public FirewallPortsControl()
@@ -42,18 +43,18 @@ public class FirewallPortsControl : UtilityControl
 
         _grid = CreateGrid();
         _grid.AutoGenerateColumns = false;
-        AddBoundColumn(_grid, "Protocol", "Protocol").FillWeight = 10;
-        AddBoundColumn(_grid, "LocalPorts", "Local Ports").FillWeight = 22;
-        AddBoundColumn(_grid, "Name", "Rule Name").FillWeight = 38;
-        AddBoundColumn(_grid, "Application", "Application / Service").FillWeight = 30;
-        AddBoundColumn(_grid, "Profiles", "Profiles").FillWeight = 16;
+        AddBoundColumn(_grid, "Protocol", L.T("Protocol")).FillWeight = 10;
+        AddBoundColumn(_grid, "LocalPorts", L.T("Local Ports")).FillWeight = 22;
+        AddBoundColumn(_grid, "Name", L.T("Rule Name")).FillWeight = 38;
+        AddBoundColumn(_grid, "Application", L.T("Application / Service")).FillWeight = 30;
+        AddBoundColumn(_grid, "Profiles", L.T("Profiles")).FillWeight = 16;
         _grid.DataSource = _table;
 
         var note = new Label
         {
             Dock = DockStyle.Bottom,
             Height = 26,
-            Text = "Read-only view of enabled inbound allow rules (Windows Firewall).",
+            Text = L.T("Read-only view of enabled inbound allow rules (Windows Firewall)."),
             TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(6, 0, 0, 0),
         };
@@ -68,7 +69,7 @@ public class FirewallPortsControl : UtilityControl
     private async Task LoadAsync()
     {
         _refreshButton.Enabled = false;
-        _statusLabel.Text = "Reading firewall rules...";
+        _statusLabel.Text = L.T("Reading firewall rules...");
         try
         {
             var rules = await Task.Run(FirewallRules.GetInboundAllowRules);
@@ -77,11 +78,11 @@ public class FirewallPortsControl : UtilityControl
                 _table.Rows.Add(rule.Protocol, rule.LocalPorts, rule.Name, rule.Application, rule.Profiles);
             _table.DefaultView.Sort = "Protocol ASC, Name ASC";
             ApplyFilter();
-            _statusLabel.Text = $"{rules.Count} enabled inbound allow rule(s).";
+            _statusLabel.Text = L.F("{0} enabled inbound allow rule(s).", rules.Count);
         }
         catch (Exception ex)
         {
-            _statusLabel.Text = $"Error: {ex.GetBaseException().Message}";
+            _statusLabel.Text = L.F("Error: {0}", ex.GetBaseException().Message);
         }
         finally
         {

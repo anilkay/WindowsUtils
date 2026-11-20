@@ -41,6 +41,10 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 | **Temp Cleaner** | Sizes of temp, browser/thumbnail cache, error report and crash dump folders; cleans the ones you tick after a confirmation (files older than 24 h only) |
 | **AI Chat** | Chat with an AI agent that can inspect this PC via read-only tools (needs an API key) |
 
+## Language
+
+The app is in English and Turkish. It follows the Windows display language by default; pick another one at the bottom of the sidebar (the app restarts to apply it). AI Chat tool output and the `wutils` CLI stay English.
+
 ## Requirements
 
 - Windows

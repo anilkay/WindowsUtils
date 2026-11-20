@@ -3,6 +3,7 @@ using FluentResults;
 using Microsoft.Extensions.Logging;
 using WindowsUtils.AI;
 using WindowsUtils.Core.Logging;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -15,17 +16,17 @@ public class ChatControl : UtilityControl
     private readonly TextBox _endpointBox = new() { Text = "https://api.openai.com/v1", Width = 260 };
     // Editable drop-down: filled from the endpoint's /models list, but any name can still be typed.
     private readonly ComboBox _modelBox = new() { Text = "gpt-4o-mini", Width = 220, DropDownStyle = ComboBoxStyle.DropDown, MaxDropDownItems = 20 };
-    private readonly Button _loadModelsButton = new() { Text = "Load models", AutoSize = true };
-    private readonly TextBox _apiKeyBox = new() { Width = 180, UseSystemPasswordChar = true, PlaceholderText = "API key" };
+    private readonly Button _loadModelsButton = new() { Text = L.T("Load models"), AutoSize = true };
+    private readonly TextBox _apiKeyBox = new() { Width = 180, UseSystemPasswordChar = true, PlaceholderText = L.T("API key") };
     private readonly ComboBox _reasoningBox = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 100 };
-    private readonly Button _sendButton = new() { Text = "Send", Width = 90 };
-    private readonly Button _stopButton = new() { Text = "Stop", Width = 90, Enabled = false };
-    private readonly Button _newChatButton = new() { Text = "New chat", AutoSize = true };
-    private readonly Button _clearButton = new() { Text = "Clear", AutoSize = true };
-    private readonly Button _exportButton = new() { Text = "Export...", AutoSize = true };
-    private readonly Button _forgetButton = new() { Text = "Forget", AutoSize = true };
-    private readonly Button _mcpButton = new() { Text = "Start MCP server", AutoSize = true };
-    private readonly CheckBox _rememberCheck = new() { Text = "Remember", Checked = true, AutoSize = true };
+    private readonly Button _sendButton = new() { Text = L.T("Send"), Width = 90 };
+    private readonly Button _stopButton = new() { Text = L.T("Stop"), Width = 90, Enabled = false };
+    private readonly Button _newChatButton = new() { Text = L.T("New chat"), AutoSize = true };
+    private readonly Button _clearButton = new() { Text = L.T("Clear"), AutoSize = true };
+    private readonly Button _exportButton = new() { Text = L.T("Export..."), AutoSize = true };
+    private readonly Button _forgetButton = new() { Text = L.T("Forget"), AutoSize = true };
+    private readonly Button _mcpButton = new() { Text = L.T("Start MCP server"), AutoSize = true };
+    private readonly CheckBox _rememberCheck = new() { Text = L.T("Remember"), Checked = true, AutoSize = true };
     private readonly ChatTranscriptView _transcript = new();
     private readonly TextBox _inputBox = new();
     private readonly Label _statusLabel = new();
@@ -66,17 +67,17 @@ public class ChatControl : UtilityControl
         _mcpButton.Margin = new Padding(4, 3, 4, 3);
         _rememberCheck.Margin = new Padding(4, 8, 4, 4);
 
-        settingsPanel.Controls.Add(SettingLabel("Endpoint:"));
+        settingsPanel.Controls.Add(SettingLabel(L.T("Endpoint:")));
         settingsPanel.Controls.Add(_endpointBox);
-        settingsPanel.Controls.Add(SettingLabel("API key:"));
+        settingsPanel.Controls.Add(SettingLabel(L.T("API key:")));
         settingsPanel.Controls.Add(_apiKeyBox);
         settingsPanel.SetFlowBreak(_apiKeyBox, true);
-        settingsPanel.Controls.Add(SettingLabel("Model:"));
+        settingsPanel.Controls.Add(SettingLabel(L.T("Model:")));
         settingsPanel.Controls.Add(_modelBox);
         settingsPanel.Controls.Add(_loadModelsButton);
         _reasoningBox.Items.AddRange(["Default", "Minimal", "Low", "Medium", "High"]);
         _reasoningBox.SelectedIndex = 2;
-        settingsPanel.Controls.Add(SettingLabel("Reasoning:"));
+        settingsPanel.Controls.Add(SettingLabel(L.T("Reasoning:")));
         settingsPanel.Controls.Add(_reasoningBox);
         settingsPanel.Controls.Add(_rememberCheck);
         settingsPanel.Controls.Add(_forgetButton);
@@ -87,15 +88,15 @@ public class ChatControl : UtilityControl
         _transcript.HandleCreated += (_, _) =>
         {
             if (_transcript.TextLength == 0)
-                _transcript.AddNote("Enter your endpoint, model and API key above, then ask anything. "
-                    + "The agent can inspect this PC via read-only tools (system info, processes, drives, files).");
+                _transcript.AddNote(L.T("Enter your endpoint, model and API key above, then ask anything. "
+                    + "The agent can inspect this PC via read-only tools (system info, processes, drives, files)."));
         };
 
         var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 72, Padding = new Padding(0, 4, 0, 0) };
         _inputBox.Dock = DockStyle.Fill;
         _inputBox.Multiline = true;
         _inputBox.ScrollBars = ScrollBars.None;
-        _inputBox.PlaceholderText = "Type a message... (Enter to send, Shift+Enter for newline)";
+        _inputBox.PlaceholderText = L.T("Type a message... (Enter to send, Shift+Enter for newline)");
         _inputBox.KeyDown += OnInputKeyDown;
         // Show the scroll bar only once the text no longer fits.
         _inputBox.TextChanged += (_, _) => UpdateInputScrollBar();
@@ -145,7 +146,7 @@ public class ChatControl : UtilityControl
         _statusLabel.AutoEllipsis = true;
         _statusLabel.TextAlign = ContentAlignment.MiddleLeft;
         _statusLabel.ForeColor = Theme.SubtleText;
-        _statusLabel.Text = "Not connected.";
+        _statusLabel.Text = L.T("Not connected.");
         statusBar.Controls.Add(_statusLabel);
         statusBar.Controls.Add(chatActions);
 
@@ -194,7 +195,7 @@ public class ChatControl : UtilityControl
         _cts?.Cancel();
         _chatSession?.Reset();
         _transcript.ClearTranscript();
-        _statusLabel.Text = "New conversation started.";
+        _statusLabel.Text = L.T("New conversation started.");
     }
 
     private string ModelsSourceKey() => $"{_endpointBox.Text.Trim().TrimEnd('/')}|{_apiKeyBox.Text.Trim()}";
@@ -209,7 +210,7 @@ public class ChatControl : UtilityControl
         var sourceKey = ModelsSourceKey();
 
         _loadModelsButton.Enabled = false;
-        _statusLabel.Text = "Loading models...";
+        _statusLabel.Text = L.T("Loading models...");
         try
         {
             var models = await ModelCatalog.ListModelsAsync(_endpointBox.Text, _apiKeyBox.Text, token);
@@ -226,8 +227,8 @@ public class ChatControl : UtilityControl
             _modelsLoadedFor = sourceKey;
 
             _statusLabel.Text = models.Count == 0
-                ? "The endpoint returned no models. Type the model name by hand."
-                : $"Loaded {models.Count} model(s). Pick one or type a name.";
+                ? L.T("The endpoint returned no models. Type the model name by hand.")
+                : L.F("Loaded {0} model(s). Pick one or type a name.", models.Count);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -241,8 +242,8 @@ public class ChatControl : UtilityControl
             _modelsLoadedFor = sourceKey;
             Log.LogWarning(ex, "Could not list models.");
             _statusLabel.Text = ChatSession.IsUnauthorizedError(ex)
-                ? "Could not list models: the endpoint rejected the API key (HTTP 401/403). You can still type a model name."
-                : $"Could not list models ({ex.Message}). You can still type a model name.";
+                ? L.T("Could not list models: the endpoint rejected the API key (HTTP 401/403). You can still type a model name.")
+                : L.F("Could not list models ({0}). You can still type a model name.", ex.Message);
         }
         finally
         {
@@ -290,12 +291,12 @@ public class ChatControl : UtilityControl
         {
             if (_apiKeyBox.Text != key)
                 _apiKeyBox.Text = key;
-            _statusLabel.Text = "Loaded the saved API key for this endpoint.";
+            _statusLabel.Text = L.T("Loaded the saved API key for this endpoint.");
         }
         else if (_apiKeyBox.TextLength > 0)
         {
             _apiKeyBox.Clear();
-            _statusLabel.Text = "The API key box was emptied: keys are stored per endpoint host.";
+            _statusLabel.Text = L.T("The API key box was emptied: keys are stored per endpoint host.");
         }
     }
 
@@ -312,7 +313,7 @@ public class ChatControl : UtilityControl
                 _reasoningBox.SelectedItem as string))
             .Bind(() => key.Length > 0 && host.Length > 0 ? CredentialStore.Save(key, host) : Result.Ok());
         if (saved.IsFailed)
-            _statusLabel.Text = $"Could not save settings: {saved.Errors[0].Message}";
+            _statusLabel.Text = L.F("Could not save settings: {0}", saved.Errors[0].Message);
     }
 
     private void ForgetSettings()
@@ -323,7 +324,7 @@ public class ChatControl : UtilityControl
         _apiKeyBox.Clear();
         _chatSession = null;
         _sessionCacheKey = null;
-        _statusLabel.Text = "Saved settings forgotten.";
+        _statusLabel.Text = L.T("Saved settings forgotten.");
     }
 
     /// <summary>Starts or stops the local MCP server that exposes the agent and the read-only tools
@@ -338,17 +339,17 @@ public class ChatControl : UtilityControl
             try
             {
                 await host.StopAsync();
-                _transcript.AddNote("MCP server stopped.");
-                _statusLabel.Text = "MCP server stopped.";
+                _transcript.AddNote(L.T("MCP server stopped."));
+                _statusLabel.Text = L.T("MCP server stopped.");
             }
             catch (Exception ex)
             {
-                _statusLabel.Text = $"Could not stop the MCP server: {ex.Message}";
+                _statusLabel.Text = L.F("Could not stop the MCP server: {0}", ex.Message);
             }
             finally
             {
                 _mcpButton.Enabled = true;
-                _mcpButton.Text = "Start MCP server";
+                _mcpButton.Text = L.T("Start MCP server");
             }
             return;
         }
@@ -360,7 +361,7 @@ public class ChatControl : UtilityControl
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "AI Chat", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(ex.Message, L.T("AI Chat"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -368,21 +369,21 @@ public class ChatControl : UtilityControl
             SaveSettings();
 
         _mcpButton.Enabled = false;
-        _statusLabel.Text = "Starting MCP server...";
+        _statusLabel.Text = L.T("Starting MCP server...");
         try
         {
             _mcpHost = await McpServerHost.StartAsync(options);
-            _mcpButton.Text = "Stop MCP server";
-            _transcript.AddNote($"MCP server running at {_mcpHost.Url} — it exposes the read-only tools and "
-                + "the AI agent; the bearer token was shown in a dialog and is new on every start.");
-            _statusLabel.Text = $"MCP server: {_mcpHost.Url}";
+            _mcpButton.Text = L.T("Stop MCP server");
+            _transcript.AddNote(L.F("MCP server running at {0} — it exposes the read-only tools and "
+                + "the AI agent; the bearer token was shown in a dialog and is new on every start.", _mcpHost.Url));
+            _statusLabel.Text = L.F("MCP server: {0}", _mcpHost.Url);
             new McpServerDialog(_mcpHost.ClientConfigJson).ShowDialog(this);
         }
         catch (Exception ex)
         {
-            _statusLabel.Text = "Could not start the MCP server.";
+            _statusLabel.Text = L.T("Could not start the MCP server.");
             Log.LogError(ex, "Could not start the MCP server.");
-            MessageBox.Show($"Could not start the MCP server: {ex.Message}", "AI Chat",
+            MessageBox.Show(L.F("Could not start the MCP server: {0}", ex.Message), L.T("AI Chat"),
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
@@ -395,13 +396,13 @@ public class ChatControl : UtilityControl
     {
         if (!_transcript.HasMessages)
         {
-            _statusLabel.Text = "Nothing to export.";
+            _statusLabel.Text = L.T("Nothing to export.");
             return;
         }
 
         using var dialog = new SaveFileDialog
         {
-            Filter = "Markdown files (*.md)|*.md|Text files (*.txt)|*.txt|All files (*.*)|*.*",
+            Filter = L.T("Markdown files (*.md)|*.md|Text files (*.txt)|*.txt|All files (*.*)|*.*"),
             DefaultExt = "md",
             FileName = $"chat-{DateTime.Now:yyyyMMdd-HHmmss}.md",
         };
@@ -413,11 +414,11 @@ public class ChatControl : UtilityControl
             var header = $"# WindowsUtils AI Chat export — {DateTime.Now:F}\n\n"
                 + $"Model: {_modelBox.Text.Trim()}\n\n";
             File.WriteAllText(dialog.FileName, header + _transcript.ToMarkdown());
-            _statusLabel.Text = $"Chat exported to {dialog.FileName}.";
+            _statusLabel.Text = L.F("Chat exported to {0}.", dialog.FileName);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not export chat: {ex.Message}", "Export", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(L.F("Could not export chat: {0}", ex.Message), L.T("Export"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -433,11 +434,11 @@ public class ChatControl : UtilityControl
         var model = _modelBox.Text.Trim();
         var key = _apiKeyBox.Text.Trim();
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out _))
-            throw new InvalidOperationException("Enter a valid endpoint URL (e.g. https://api.openai.com/v1).");
+            throw new InvalidOperationException(L.T("Enter a valid endpoint URL (e.g. https://api.openai.com/v1)."));
         if (string.IsNullOrWhiteSpace(model))
-            throw new InvalidOperationException("Enter a model name (e.g. gpt-4o-mini).");
+            throw new InvalidOperationException(L.T("Enter a model name (e.g. gpt-4o-mini)."));
         if (string.IsNullOrWhiteSpace(key))
-            throw new InvalidOperationException("Enter an API key.");
+            throw new InvalidOperationException(L.T("Enter an API key."));
         return new ChatAgentOptions(endpoint, model, key, SelectedEffort());
     }
 
@@ -466,7 +467,7 @@ public class ChatControl : UtilityControl
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "AI Chat", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(ex.Message, L.T("AI Chat"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -500,19 +501,19 @@ public class ChatControl : UtilityControl
                     SaveSettings();
                 session.DisableReasoningEffort();
                 _transcript.EndAssistantMessage();
-                _transcript.AddNote("The model does not support reasoning_effort, retrying without it.");
+                _transcript.AddNote(L.T("The model does not support reasoning_effort, retrying without it."));
                 _transcript.BeginAssistantMessage();
                 SetActivity(new ChatStreamUpdate(ChatActivity.Waiting));
                 await StreamAsync(session, prompt, token);
             }
             _transcript.EndAssistantMessage();
-            _statusLabel.Text = "Ready.";
+            _statusLabel.Text = L.T("Ready.");
         }
         catch (OperationCanceledException)
         {
             _transcript.EndAssistantMessage();
-            _transcript.AddNote("Cancelled.");
-            _statusLabel.Text = "Cancelled.";
+            _transcript.AddNote(L.T("Cancelled."));
+            _statusLabel.Text = L.T("Cancelled.");
         }
         catch (TimeoutException ex)
         {
@@ -520,8 +521,8 @@ public class ChatControl : UtilityControl
             // its history), so keep it: sending again continues the same conversation.
             Log.LogWarning(ex, "The endpoint went silent (response timeout).");
             _transcript.EndAssistantMessage();
-            _transcript.AddError($"No response: {ex.Message}");
-            _statusLabel.Text = "No response from the endpoint.";
+            _transcript.AddError(L.F("No response: {0}", ex.Message));
+            _statusLabel.Text = L.T("No response from the endpoint.");
         }
         catch (Exception ex)
         {
@@ -531,10 +532,10 @@ public class ChatControl : UtilityControl
             session.Reset();
             _transcript.EndAssistantMessage();
             if (ChatSession.IsUnauthorizedError(ex))
-                _transcript.AddError("Authorization failed: the endpoint rejected the API key (HTTP 401/403). Check that the key is correct and belongs to this endpoint/model.");
+                _transcript.AddError(L.T("Authorization failed: the endpoint rejected the API key (HTTP 401/403). Check that the key is correct and belongs to this endpoint/model."));
             else
-                _transcript.AddError($"Error: {ex.GetType().Name}: {ex.Message}");
-            _statusLabel.Text = "Error — check endpoint/model/key.";
+                _transcript.AddError(L.F("Error: {0}", $"{ex.GetType().Name}: {ex.Message}"));
+            _statusLabel.Text = L.T("Error — check endpoint/model/key.");
         }
         finally
         {
@@ -560,10 +561,10 @@ public class ChatControl : UtilityControl
     private Task<bool> ApproveToolCall(ToolApprovalRequest request, CancellationToken token)
     {
         // Through the activity text, so the ticking timer keeps showing it while the box is open.
-        _activityText = $"Waiting for your permission to run {request.ToolName}...";
+        _activityText = L.F("Waiting for your permission to run {0}...", request.ToolName);
         _activityWatch.Restart();
         ShowActivity();
-        var answer = MessageBox.Show(this, request.Prompt, "AI Chat",
+        var answer = MessageBox.Show(this, request.Prompt, L.T("AI Chat"),
             MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
         return Task.FromResult(answer == DialogResult.Yes);
     }
@@ -582,10 +583,10 @@ public class ChatControl : UtilityControl
     {
         var text = update.Activity switch
         {
-            ChatActivity.Thinking => "The model is thinking...",
-            ChatActivity.RunningTool => $"Running tool {update.ToolName}...",
-            ChatActivity.Writing => "Writing...",
-            _ => "Waiting for the model...",
+            ChatActivity.Thinking => L.T("The model is thinking..."),
+            ChatActivity.RunningTool => L.F("Running tool {0}...", update.ToolName),
+            ChatActivity.Writing => L.T("Writing..."),
+            _ => L.T("Waiting for the model..."),
         };
         if (text != _activityText)
         {
@@ -620,8 +621,8 @@ internal sealed class McpServerDialog : Form
         Dock = DockStyle.Fill,
         Font = Theme.MonoFont,
     };
-    private readonly Button _copyButton = new() { Text = "Copy config", AutoSize = true };
-    private readonly Button _closeButton = new() { Text = "Close", AutoSize = true, DialogResult = DialogResult.Cancel };
+    private readonly Button _copyButton = new() { Text = L.T("Copy config"), AutoSize = true };
+    private readonly Button _closeButton = new() { Text = L.T("Close"), AutoSize = true, DialogResult = DialogResult.Cancel };
     private readonly Label _copiedLabel = new()
     {
         Dock = DockStyle.Fill,
@@ -634,7 +635,7 @@ internal sealed class McpServerDialog : Form
     {
         _snippet = snippet;
         _configBox.Text = snippet;
-        Text = "MCP Server";
+        Text = L.T("MCP Server");
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -655,12 +656,12 @@ internal sealed class McpServerDialog : Form
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Padding = new Padding(14, 12, 14, 10),
         };
-        header.Controls.Add(new Label { Text = "MCP server started.", Font = Theme.SemiboldFont, AutoSize = true });
+        header.Controls.Add(new Label { Text = L.T("MCP server started."), Font = Theme.SemiboldFont, AutoSize = true });
         header.Controls.Add(new Label
         {
-            Text = "Add this entry to the mcp.json of an MCP client on this PC (e.g. VS Code). The token "
+            Text = L.T("Add this entry to the mcp.json of an MCP client on this PC (e.g. VS Code). The token "
                 + "is new every time the server starts, so update the client after restarting it. The server "
-                + "only accepts connections from this PC and stops when the button is clicked again.",
+                + "only accepts connections from this PC and stops when the button is clicked again."),
             AutoSize = true,
             MaximumSize = new Size(508, 0),
             ForeColor = Theme.SubtleText,
@@ -699,12 +700,12 @@ internal sealed class McpServerDialog : Form
         try
         {
             Clipboard.SetText(_snippet);
-            _copiedLabel.Text = "Copied to the clipboard.";
+            _copiedLabel.Text = L.T("Copied to the clipboard.");
         }
         catch (Exception ex)
         {
             // Someone else holds the clipboard open; Ctrl+C in the box still works.
-            _copiedLabel.Text = $"Could not copy ({ex.Message}); select the text and press Ctrl+C instead.";
+            _copiedLabel.Text = L.F("Could not copy ({0}); select the text and press Ctrl+C instead.", ex.Message);
         }
     }
 }

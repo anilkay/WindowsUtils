@@ -1,4 +1,5 @@
 using WindowsUtils.Core.SystemInfo;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -10,12 +11,12 @@ public class AddUserWizardForm : Form
     private readonly TextBox _descriptionBox = new();
     private readonly TextBox _passwordBox = new() { UseSystemPasswordChar = true };
     private readonly TextBox _confirmBox = new() { UseSystemPasswordChar = true };
-    private readonly CheckBox _neverExpiresCheck = new() { Text = "Password never expires", AutoSize = true };
-    private readonly CheckBox _noPasswordChangeCheck = new() { Text = "User cannot change password", AutoSize = true };
-    private readonly RadioButton _standardRadio = new() { Text = "Standard user", AutoSize = true, Checked = true };
-    private readonly RadioButton _adminRadio = new() { Text = "Administrator", AutoSize = true };
-    private readonly Button _createButton = new() { Text = "Create", AutoSize = true };
-    private readonly Button _cancelButton = new() { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel };
+    private readonly CheckBox _neverExpiresCheck = new() { Text = L.T("Password never expires"), AutoSize = true };
+    private readonly CheckBox _noPasswordChangeCheck = new() { Text = L.T("User cannot change password"), AutoSize = true };
+    private readonly RadioButton _standardRadio = new() { Text = L.T("Standard user"), AutoSize = true, Checked = true };
+    private readonly RadioButton _adminRadio = new() { Text = L.T("Administrator"), AutoSize = true };
+    private readonly Button _createButton = new() { Text = L.T("Create"), AutoSize = true };
+    private readonly Button _cancelButton = new() { Text = L.T("Cancel"), AutoSize = true, DialogResult = DialogResult.Cancel };
 
     /// <summary>The account to create; null when the wizard was cancelled.</summary>
     public NewLocalUser? Result { get; private set; }
@@ -32,7 +33,7 @@ public class AddUserWizardForm : Form
 
     public AddUserWizardForm()
     {
-        Text = "Add Local User";
+        Text = L.T("Add Local User");
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -50,12 +51,12 @@ public class AddUserWizardForm : Form
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        AddRow(layout, 0, "User name *", _nameBox);
-        _nameBox.PlaceholderText = "max. 20 chars, no spaces";
-        AddRow(layout, 1, "Full name", _fullNameBox);
-        AddRow(layout, 2, "Description", _descriptionBox);
-        AddRow(layout, 3, "Password *", _passwordBox);
-        AddRow(layout, 4, "Confirm password *", _confirmBox);
+        AddRow(layout, 0, L.T("User name *"), _nameBox);
+        _nameBox.PlaceholderText = L.T("max. 20 chars, no spaces");
+        AddRow(layout, 1, L.T("Full name"), _fullNameBox);
+        AddRow(layout, 2, L.T("Description"), _descriptionBox);
+        AddRow(layout, 3, L.T("Password *"), _passwordBox);
+        AddRow(layout, 4, L.T("Confirm password *"), _confirmBox);
 
         _neverExpiresCheck.Margin = new Padding(3, 6, 3, 2);
         layout.Controls.Add(_neverExpiresCheck, 1, 5);
@@ -64,7 +65,7 @@ public class AddUserWizardForm : Form
 
         layout.Controls.Add(new Label
         {
-            Text = "Account type:",
+            Text = L.T("Account type:"),
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(3, 8, 3, 2),
@@ -93,7 +94,7 @@ public class AddUserWizardForm : Form
             TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(12, 0, 12, 0),
             ForeColor = Theme.SubtleText,
-            Text = "Creating an account requires Administrator privileges.",
+            Text = L.T("Creating an account requires Administrator privileges."),
         };
 
         var buttons = new FlowLayoutPanel
@@ -134,7 +135,7 @@ public class AddUserWizardForm : Form
 
         if (user.Password != _confirmBox.Text)
         {
-            MessageBox.Show("The passwords do not match.", "Add Local User",
+            MessageBox.Show(L.T("The passwords do not match."), L.T("Add Local User"),
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
             _confirmBox.Focus();
             return;
@@ -142,12 +143,12 @@ public class AddUserWizardForm : Form
 
         _createButton.Enabled = false;
         status.ForeColor = Theme.SubtleText;
-        status.Text = "Creating account...";
+        status.Text = L.T("Creating account...");
         Task.Run(() => UserManagement.AddUser(user))
             .ContinueWith(t =>
             {
                 var result = t.IsFaulted
-                    ? FluentResults.Result.Fail(t.Exception?.GetBaseException().Message ?? "Unknown error.")
+                    ? FluentResults.Result.Fail(t.Exception?.GetBaseException().Message ?? L.T("Unknown error."))
                     : t.Result;
                 if (result.IsSuccess)
                 {

@@ -1,20 +1,21 @@
 using System.Data;
 using System.Diagnostics;
 using WindowsUtils.Core.IO;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
 public class DuplicateFilesControl : UtilityControl
 {
-    private const string AllDrivesText = "All fixed drives";
+    private static readonly string AllDrivesText = L.T("All fixed drives");
 
     private static readonly (string Text, long Bytes)[] MinSizes =
     [
-        ("Any size", 1),
-        ("1 KB or larger", 1024),
-        ("1 MB or larger", 1024 * 1024),
-        ("10 MB or larger", 10 * 1024 * 1024),
-        ("100 MB or larger", 100 * 1024 * 1024),
+        (L.T("Any size"), 1),
+        (L.T("1 KB or larger"), 1024),
+        (L.T("1 MB or larger"), 1024 * 1024),
+        (L.T("10 MB or larger"), 10 * 1024 * 1024),
+        (L.T("100 MB or larger"), 100 * 1024 * 1024),
     ];
 
     private readonly DataGridView _grid;
@@ -45,7 +46,7 @@ public class DuplicateFilesControl : UtilityControl
             Padding = new Padding(4),
         };
 
-        topPanel.Controls.Add(new Label { Text = "Scan:", AutoSize = true, Margin = new Padding(4, 12, 4, 4) });
+        topPanel.Controls.Add(new Label { Text = L.T("Scan:"), AutoSize = true, Margin = new Padding(4, 12, 4, 4) });
 
         _scopeBox.DropDownStyle = ComboBoxStyle.DropDown;
         _scopeBox.Width = 260;
@@ -60,7 +61,7 @@ public class DuplicateFilesControl : UtilityControl
         }
         _scopeBox.Text = profile;
 
-        var browseButton = new Button { Text = "Browse...", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
+        var browseButton = new Button { Text = L.T("Browse..."), AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
 
         _minSizeBox.DropDownStyle = ComboBoxStyle.DropDownList;
         _minSizeBox.Width = 140;
@@ -69,11 +70,11 @@ public class DuplicateFilesControl : UtilityControl
             _minSizeBox.Items.Add(text);
         _minSizeBox.SelectedIndex = 2; // 1 MB: skips thousands of tiny config/icon files
 
-        _scanButton.Text = "Find Duplicates";
+        _scanButton.Text = L.T("Find Duplicates");
         _scanButton.AutoSize = true;
         _scanButton.AsAccent();
         _scanButton.Margin = new Padding(4, 6, 4, 4);
-        _cancelButton.Text = "Cancel";
+        _cancelButton.Text = L.T("Cancel");
         _cancelButton.AutoSize = true;
         _cancelButton.Margin = new Padding(4, 6, 4, 4);
         _cancelButton.Enabled = false;
@@ -97,11 +98,11 @@ public class DuplicateFilesControl : UtilityControl
         _grid = CreateGrid();
         _grid.MultiSelect = true;
         _grid.AutoGenerateColumns = false;
-        AddBoundColumn(_grid, "Group", "Group").FillWeight = 8;
-        AddBoundColumn(_grid, "Name", "Name").FillWeight = 26;
-        AddBoundColumn(_grid, "Folder", "Folder").FillWeight = 42;
-        AddBoundColumn(_grid, "Size", "Size").FillWeight = 12;
-        AddBoundColumn(_grid, "Modified", "Modified").FillWeight = 16;
+        AddBoundColumn(_grid, "Group", L.T("Group")).FillWeight = 8;
+        AddBoundColumn(_grid, "Name", L.T("Name")).FillWeight = 26;
+        AddBoundColumn(_grid, "Folder", L.T("Folder")).FillWeight = 42;
+        AddBoundColumn(_grid, "Size", L.T("Size")).FillWeight = 12;
+        AddBoundColumn(_grid, "Modified", L.T("Modified")).FillWeight = 16;
         AddBoundColumn(_grid, "FullPath", "FullPath").Visible = false;
         MakeUnsortable(_grid); // header sorting would scatter the groups
         _grid.DataSource = _table;
@@ -134,9 +135,9 @@ public class DuplicateFilesControl : UtilityControl
             Padding = new Padding(4),
         };
 
-        var selectCopiesButton = new Button { Text = "Select Copies (Keep Oldest)", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
-        var openButton = new Button { Text = "Open in Explorer", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
-        var deleteButton = new Button { Text = "Delete Selected", AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
+        var selectCopiesButton = new Button { Text = L.T("Select Copies (Keep Oldest)"), AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
+        var openButton = new Button { Text = L.T("Open in Explorer"), AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
+        var deleteButton = new Button { Text = L.T("Delete Selected"), AutoSize = true, Margin = new Padding(4, 6, 4, 4) };
         _statusLabel.AutoSize = true;
         _statusLabel.Margin = new Padding(12, 12, 4, 4);
 
@@ -172,7 +173,7 @@ public class DuplicateFilesControl : UtilityControl
         var roots = GetScanRoots();
         if (roots.Count == 0)
         {
-            _statusLabel.Text = "Pick a valid drive or folder to scan.";
+            _statusLabel.Text = L.T("Pick a valid drive or folder to scan.");
             return;
         }
 
@@ -187,9 +188,9 @@ public class DuplicateFilesControl : UtilityControl
 
         var progress = new Progress<DuplicateScanProgress>(p => _statusLabel.Text = p.Phase switch
         {
-            DuplicateScanPhase.Scanning => $"Scanning... {p.Done:N0} files checked",
-            DuplicateScanPhase.Comparing => $"Comparing same-size files... {p.Done:N0} of {p.Total:N0}",
-            _ => $"Hashing possible duplicates... {p.Done:N0} of {p.Total:N0}",
+            DuplicateScanPhase.Scanning => L.F("Scanning... {0:N0} files checked", p.Done),
+            DuplicateScanPhase.Comparing => L.F("Comparing same-size files... {0:N0} of {1:N0}", p.Done, p.Total),
+            _ => L.F("Hashing possible duplicates... {0:N0} of {1:N0}", p.Done, p.Total),
         });
         try
         {
@@ -215,19 +216,19 @@ public class DuplicateFilesControl : UtilityControl
             _table.EndLoadData();
 
             _statusLabel.Text = groups.Count == 0
-                ? $"Done. Scanned {scanned:N0} files, no duplicates found."
-                : $"Done. Scanned {scanned:N0} files. {groups.Count:N0} groups of duplicates, "
-                    + $"{FormatBytes(groups.Sum(g => g.WastedBytes))} could be freed.";
+                ? L.F("Done. Scanned {0:N0} files, no duplicates found.", scanned)
+                : L.F("Done. Scanned {0:N0} files. {1:N0} groups of duplicates, {2} could be freed.",
+                    scanned, groups.Count, FormatBytes(groups.Sum(g => g.WastedBytes)));
             if (errors.Count > 0)
-                _statusLabel.Text += $" Skipped {string.Join(", ", errors.Select(e => $"{e.Root} ({e.Message})"))}";
+                _statusLabel.Text += " " + L.F("Skipped {0}", string.Join(", ", errors.Select(e => $"{e.Root} ({e.Message})")));
         }
         catch (OperationCanceledException)
         {
-            _statusLabel.Text = "Scan cancelled.";
+            _statusLabel.Text = L.T("Scan cancelled.");
         }
         catch (Exception ex)
         {
-            _statusLabel.Text = $"Error: {ex.Message}";
+            _statusLabel.Text = L.F("Error: {0}", ex.Message);
         }
         finally
         {
@@ -255,15 +256,15 @@ public class DuplicateFilesControl : UtilityControl
             previousGroup = group;
         }
         _statusLabel.Text = selected == 0
-            ? "Nothing to select. Run a scan first."
-            : $"Selected {selected:N0} copies. The oldest file in each group is kept.";
+            ? L.T("Nothing to select. Run a scan first.")
+            : L.F("Selected {0:N0} copies. The oldest file in each group is kept.", selected);
     }
 
     private void OpenSelectedInExplorer()
     {
         if (_grid.SelectedRows.Count == 0)
         {
-            _statusLabel.Text = "Select a file first.";
+            _statusLabel.Text = L.T("Select a file first.");
             return;
         }
         if (_grid.SelectedRows[0].DataBoundItem is not DataRowView row)
@@ -275,11 +276,11 @@ public class DuplicateFilesControl : UtilityControl
             if (File.Exists(path))
                 Process.Start(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), $"/select,\"{path}\"");
             else
-                _statusLabel.Text = "File no longer exists.";
+                _statusLabel.Text = L.T("File no longer exists.");
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not open Explorer: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(L.F("Could not open Explorer: {0}", ex.Message), L.T("Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -287,7 +288,7 @@ public class DuplicateFilesControl : UtilityControl
     {
         if (_grid.SelectedRows.Count == 0)
         {
-            _statusLabel.Text = "Select one or more files first.";
+            _statusLabel.Text = L.T("Select one or more files first.");
             return;
         }
 
@@ -306,12 +307,12 @@ public class DuplicateFilesControl : UtilityControl
             .Count(g => g.Count() == groupSizes[g.Key]);
 
         var totalSize = rows.Sum(r => (long)r["Size"]);
-        var message = $"Delete {rows.Count} file(s) ({FormatBytes(totalSize)})? They will be moved to the Recycle Bin.\n\n"
-            + "Files that cannot be recycled (too large, or on a network or USB drive) will ask before being permanently deleted.";
+        var message = L.F("Delete {0} file(s) ({1})? They will be moved to the Recycle Bin.", rows.Count, FormatBytes(totalSize)) + "\n\n"
+            + L.T("Files that cannot be recycled (too large, or on a network or USB drive) will ask before being permanently deleted.");
         if (allCopiesGroups > 0)
-            message = $"Warning: for {allCopiesGroups} group(s) you selected every copy, so no copy of those files will be left.\n\n" + message;
+            message = L.F("Warning: for {0} group(s) you selected every copy, so no copy of those files will be left.", allCopiesGroups) + "\n\n" + message;
 
-        var answer = MessageBox.Show(message, "Delete Files", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+        var answer = MessageBox.Show(message, L.T("Delete Files"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
         if (answer != DialogResult.Yes)
             return;
 
@@ -339,15 +340,15 @@ public class DuplicateFilesControl : UtilityControl
         }
 
         RemoveResolvedGroups();
-        _statusLabel.Text = $"Deleted {deleted} file(s)."
-            + (kept > 0 ? $" Kept {kept} that could not be recycled." : "")
-            + (failures.Count > 0 ? $" {failures.Count} failed." : "");
+        _statusLabel.Text = L.F("Deleted {0} file(s).", deleted)
+            + (kept > 0 ? " " + L.F("Kept {0} that could not be recycled.", kept) : "")
+            + (failures.Count > 0 ? " " + L.F("{0} failed.", failures.Count) : "");
 
         if (failures.Count > 0)
         {
             MessageBox.Show(
                 string.Join(Environment.NewLine, failures.Take(5)),
-                "Some files could not be deleted",
+                L.T("Some files could not be deleted"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
         }

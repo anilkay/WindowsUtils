@@ -1,3 +1,4 @@
+using WindowsUtils.Localization;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -103,7 +104,7 @@ public sealed partial class ChatTranscriptView : RichTextBox
         _messages.Add(("You", new StringBuilder(text)));
         Batch(() =>
         {
-            WriteHeader("\uE13D", "You", Theme.Accent);
+            WriteHeader("\uE13D", L.T("You"), Theme.Accent);
             // User text is shown as typed, not interpreted as Markdown.
             foreach (var line in SplitLines(text))
             {
@@ -120,7 +121,7 @@ public sealed partial class ChatTranscriptView : RichTextBox
         _messages.Add(("Assistant", _streaming));
         Batch(() =>
         {
-            WriteHeader("\uE99A", "Assistant", Theme.Text);
+            WriteHeader("\uE99A", L.T("Assistant"), Theme.Text);
             _streamStart = TextLength;
         });
     }

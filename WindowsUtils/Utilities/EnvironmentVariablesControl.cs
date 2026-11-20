@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Data;
+using WindowsUtils.Localization;
 
 namespace WindowsUtils.Utilities;
 
@@ -23,7 +24,7 @@ public class EnvironmentVariablesControl : UtilityControl
             Padding = new Padding(4),
         };
 
-        topPanel.Controls.Add(new Label { Text = "Target:", AutoSize = true, Margin = new Padding(4, 12, 4, 4) });
+        topPanel.Controls.Add(new Label { Text = L.T("Target:"), AutoSize = true, Margin = new Padding(4, 12, 4, 4) });
         _targetBox.DropDownStyle = ComboBoxStyle.DropDownList;
         _targetBox.Items.AddRange(["User", "Machine", "Process"]);
         _targetBox.SelectedIndex = 0;

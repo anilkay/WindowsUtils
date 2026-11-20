@@ -1,4 +1,5 @@
 using System.Drawing.Drawing2D;
+using WindowsUtils.Localization;
 using WindowsUtils.Utilities;
 
 namespace WindowsUtils;
@@ -15,26 +16,26 @@ public class MainForm : Form
     // Icon is a Segoe Fluent Icons / Segoe MDL2 Assets glyph.
     private static readonly (string Name, string Icon, string Description, Func<UserControl> Factory)[] Utilities =
     [
-        ("Folder Size Analyzer", "\uE8B7", "See what takes up space inside a folder.", () => new FolderSizeControl()),
-        ("Largest Files", "\uE8A5", "Find the biggest files on your drives.", () => new LargestFilesControl()),
-        ("Duplicate Files", "\uE8C8", "Find identical files and free up space.", () => new DuplicateFilesControl()),
-        ("Temp Cleaner", "\uE74D", "See and clean temporary and cache files.", () => new TempCleanerControl()),
-        ("System Information", "\uE770", "Operating system, hardware and memory at a glance.", () => new SystemInfoControl()),
-        ("Update History", "\uE895", "Installed, failed and removed Windows updates.", () => new UpdateHistoryControl()),
-        ("Event Log Summary", "\uE7BA", "Recent errors and warnings in the event logs, by source.", () => new EventLogControl()),
-        ("Disk Info", "\uEDA2", "Capacity and free space for every drive.", () => new DiskInfoControl()),
-        ("Disk Health", "\uE9D9", "Physical disk health and SMART reliability counters.", () => new DiskHealthControl()),
-        ("Network Info", "\uE968", "Network adapters, addresses and a quick ping.", () => new NetworkInfoControl()),
-        ("TCP Traceroute", "\uE774", "Trace the network path to a host over TCP.", () => new TcpTracerouteControl()),
-        ("Firewall Ports", "\uE72E", "TCP/UDP ports opened by enabled inbound firewall rules.", () => new FirewallPortsControl()),
-        ("Open Ports", "\uE839", "Listening ports and connections with the owning process.", () => new OpenPortsControl()),
-        ("File Hash Calculator", "\uE928", "Compute and verify MD5, SHA-1, SHA-256 and SHA-512 hashes.", () => new FileHashControl()),
-        ("Environment Variables", "\uE943", "Browse user, machine and process variables.", () => new EnvironmentVariablesControl()),
-        ("Battery and Power", "\uE83F", "Battery health, charge state and the active power plan.", () => new BatteryControl()),
-        ("Installed Programs", "\uE71D", "Installed programs with size and install date.", () => new InstalledProgramsControl()),
-        ("Startup Programs", "\uE7E8", "Programs registered to start with Windows.", () => new StartupProgramsControl()),
-        ("Local Users", "\uE716", "Local user accounts, their status and last logon.", () => new LocalUsersControl()),
-        ("AI Chat", "\uE8F2", "Ask an AI assistant that can inspect this PC.", () => new ChatControl()),
+        (L.T("Folder Size Analyzer"), "\uE8B7", L.T("See what takes up space inside a folder."), () => new FolderSizeControl()),
+        (L.T("Largest Files"), "\uE8A5", L.T("Find the biggest files on your drives."), () => new LargestFilesControl()),
+        (L.T("Duplicate Files"), "\uE8C8", L.T("Find identical files and free up space."), () => new DuplicateFilesControl()),
+        (L.T("Temp Cleaner"), "\uE74D", L.T("See and clean temporary and cache files."), () => new TempCleanerControl()),
+        (L.T("System Information"), "\uE770", L.T("Operating system, hardware and memory at a glance."), () => new SystemInfoControl()),
+        (L.T("Update History"), "\uE895", L.T("Installed, failed and removed Windows updates."), () => new UpdateHistoryControl()),
+        (L.T("Event Log Summary"), "\uE7BA", L.T("Recent errors and warnings in the event logs, by source."), () => new EventLogControl()),
+        (L.T("Disk Info"), "\uEDA2", L.T("Capacity and free space for every drive."), () => new DiskInfoControl()),
+        (L.T("Disk Health"), "\uE9D9", L.T("Physical disk health and SMART reliability counters."), () => new DiskHealthControl()),
+        (L.T("Network Info"), "\uE968", L.T("Network adapters, addresses and a quick ping."), () => new NetworkInfoControl()),
+        (L.T("TCP Traceroute"), "\uE774", L.T("Trace the network path to a host over TCP."), () => new TcpTracerouteControl()),
+        (L.T("Firewall Ports"), "\uE72E", L.T("TCP/UDP ports opened by enabled inbound firewall rules."), () => new FirewallPortsControl()),
+        (L.T("Open Ports"), "\uE839", L.T("Listening ports and connections with the owning process."), () => new OpenPortsControl()),
+        (L.T("File Hash Calculator"), "\uE928", L.T("Compute and verify MD5, SHA-1, SHA-256 and SHA-512 hashes."), () => new FileHashControl()),
+        (L.T("Environment Variables"), "\uE943", L.T("Browse user, machine and process variables."), () => new EnvironmentVariablesControl()),
+        (L.T("Battery and Power"), "\uE83F", L.T("Battery health, charge state and the active power plan."), () => new BatteryControl()),
+        (L.T("Installed Programs"), "\uE71D", L.T("Installed programs with size and install date."), () => new InstalledProgramsControl()),
+        (L.T("Startup Programs"), "\uE7E8", L.T("Programs registered to start with Windows."), () => new StartupProgramsControl()),
+        (L.T("Local Users"), "\uE716", L.T("Local user accounts, their status and last logon."), () => new LocalUsersControl()),
+        (L.T("AI Chat"), "\uE8F2", L.T("Ask an AI assistant that can inspect this PC."), () => new ChatControl()),
     ];
 
     public MainForm()
@@ -75,6 +76,7 @@ public class MainForm : Form
 
         sidebar.Controls.Add(_navList);
         sidebar.Controls.Add(appTitle);
+        sidebar.Controls.Add(CreateLanguagePanel());
 
         // ---- Content: page header + selected utility ----
         var contentArea = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 16, 24, 20) };
@@ -100,6 +102,62 @@ public class MainForm : Form
         Controls.Add(sidebar);
 
         _navList.SelectedIndex = 0;
+    }
+
+    // Language picker at the bottom of the sidebar: "Windows default" or a translated language.
+    // The UI culture is set once at startup, so a change asks to restart the app.
+    private Control CreateLanguagePanel()
+    {
+        var panel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 40,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Padding = new Padding(8, 4, 0, 0),
+        };
+        var icon = new Label
+        {
+            Text = "",
+            Font = Theme.IconFont,
+            AutoSize = true,
+            Margin = new Padding(4, 8, 4, 0),
+        };
+        var box = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 196, Margin = new Padding(4, 3, 0, 0) };
+
+        var saved = LanguageSettings.Load().ValueOrDefault;
+        var system = LanguageSettings.SystemUICulture;
+        // The language without the region ("English", not "English (United States)"), so it fits the box.
+        var systemName = system.IsNeutralCulture || system.Parent == System.Globalization.CultureInfo.InvariantCulture
+            ? system.NativeName
+            : system.Parent.NativeName;
+        box.Items.Add(L.F("Windows default ({0})", systemName));
+        foreach (var (_, nativeName) in LanguageSettings.Supported)
+            box.Items.Add(nativeName);
+        box.SelectedIndex = saved is null ? 0 : 1 + Array.FindIndex(LanguageSettings.Supported, s => s.Culture == saved);
+
+        box.SelectionChangeCommitted += (_, _) =>
+        {
+            var language = box.SelectedIndex <= 0 ? null : LanguageSettings.Supported[box.SelectedIndex - 1].Culture;
+            if (language == saved)
+                return;
+            var result = LanguageSettings.Save(language);
+            if (result.IsFailed)
+            {
+                MessageBox.Show(result.Errors[0].Message, L.T("Language"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            saved = language;
+            if (MessageBox.Show(L.T("The new language is used after the app restarts. Restart now?"), L.T("Language"),
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                Application.Restart();
+            }
+        };
+
+        panel.Controls.Add(icon);
+        panel.Controls.Add(box);
+        return panel;
     }
 
     protected override void OnHandleCreated(EventArgs e)
