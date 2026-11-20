@@ -9,6 +9,15 @@ namespace WindowsUtils.Core.SystemInfo;
 /// </summary>
 internal static class Wmi
 {
+    // Array properties (e.g. MSFT_PhysicalDisk.OperationalStatus) come back as object[]: join them.
+    private static string? AsText(object? value) => value switch
+    {
+        null => null,
+        string text => text,
+        Array array => string.Join(",", array.Cast<object?>().Select(v => v?.ToString())),
+        _ => value.ToString(),
+    };
+
     /// <summary>Runs a WQL query in <paramref name="wmiNamespace"/> (e.g. <c>root\cimv2</c>); returns the
     /// requested properties as strings, or null if WMI fails (service down, class missing, access denied).</summary>
     [SupportedOSPlatform("windows")]
@@ -33,7 +42,7 @@ internal static class Wmi
                 {
                     var row = new string?[properties.Length];
                     for (var i = 0; i < properties.Length; i++)
-                        row[i] = item.Properties_.Item(properties[i]).Value?.ToString();
+                        row[i] = AsText(item.Properties_.Item(properties[i]).Value);
                     rows.Add(row);
                 }
                 finally

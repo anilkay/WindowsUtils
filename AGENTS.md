@@ -25,6 +25,7 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── Net/NetworkInfo.cs    # network adapters + ping
 ├── Net/TcpTraceroute.cs  # TCP traceroute: TTL-stepped SYN probes + ICMP hop mapping (needs admin)
 ├── Net/FirewallRules.cs  # enabled inbound allow rules with TCP/UDP ports via HNetCfg.FwPolicy2 COM (read-only)
+├── Net/OpenPorts.cs      # TCP/UDP listeners + connections with owning PID (iphlpapi GetExtendedTcp/UdpTable, IPv4+IPv6, read as raw bytes); returns Result
 ├── Logging/FileLoggerProvider.cs # ILoggerProvider writing to a daily rolling file under %AppData%\WindowsUtils\logs
 ├── Logging/AppLog.cs     # process-wide logger factory accessor (AppLog.Logger<T>()) + log directory
 ├── SystemInfo/InstalledPrograms.cs # installed programs from the Uninstall keys (HKLM 64/32-bit + HKCU), read-only
@@ -37,6 +38,9 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── SystemInfo/NodeDetector.cs # installed Node.js: PATH, installer registry key, nvm-windows, Volta, fnm
 ├── SystemInfo/PowerReport.cs # battery (GetSystemPowerStatus + WMI root\wmi capacity/health/cycles) and active power plan (powrprof), read-only
 ├── SystemInfo/Wmi.cs     # read-only WQL query helper over the WbemScripting COM object (no System.Management package)
+├── SystemInfo/WindowsUpdateHistory.cs # Windows Update history via Microsoft.Update.Session COM (QueryHistory); returns Result
+├── SystemInfo/EventLogSummary.cs # System + Application critical/error/warning events grouped by source via wevtapi (EvtQuery/EvtRender XML/EvtFormatMessage); returns Result
+├── SystemInfo/DiskHealth.cs # physical disk health: MSFT_PhysicalDisk + MSFT_StorageReliabilityCounter (Storage WMI) + SMART FailurePredictStatus; counters need admin; returns Result
 ├── SystemInfo/WindowsFeatures.cs # optional Windows features (Telnet, IIS, SMB1, Hyper-V, WSL, ...) via WMI COM, read-only
 └── SystemInfo/NetFrameworkDetector.cs # installed .NET Framework: NDP\v4\Full Release DWORD (4.5-4.8.1) + legacy v3.5/v3.0/v2.0/v1.1 keys
 WindowsUtils.AI/         # class library (net10.0, no WinForms): AI chat logic
@@ -58,7 +62,7 @@ WindowsUtils/            # WinForms app (net10.0-windows), references Core
     └── *Control.cs       # one self-contained UserControl per utility
 ```
 
-Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, Firewall Ports, File Hash Calculator, Environment Variables, Battery and Power, Installed Programs, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, Temp Cleaner, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
+Current utilities: System Information, Update History, Event Log Summary, Disk Info, Disk Health, Network Info, TCP Traceroute, Firewall Ports, Open Ports, File Hash Calculator, Environment Variables, Battery and Power, Installed Programs, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, Temp Cleaner, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
 
 ## Conventions
 
@@ -66,6 +70,7 @@ Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, 
 - **Navigation**: `MainForm.Utilities` is a `(string Name, string Icon, string Description, Func<UserControl> Factory)[]` tuple array (`Icon` is a Segoe Fluent Icons glyph such as `"\uE770"`; `Description` is shown under the page title). Controls are created lazily on first navigation, styled with `Theme.Apply`, and cached (state survives tab switches).
 - **Theming**: `Theme.cs` holds the Windows 11 style palette (light/dark follows Windows via `Application.SetColorMode(SystemColorMode.System)`, accent from the Windows accent color) and fonts. Use `Theme.*` colors instead of `SystemColors`/named colors; mark a screen's main action button with `.AsAccent()`. Buttons are owner-painted by `Theme.Apply`, grids by `CreateGrid()`.
 - **Docking order**: WinForms docks controls in reverse z-order. Add the `Dock=Fill` control **first**, then `Top`/`Bottom` panels, so panels dock correctly.
+- **P/Invoke must be arm64-safe**: use `IntPtr`/`int`/`uint` parameters and avoid `[StructLayout]` structs whose size or packing could differ between x64 and arm64. Read native tables as bytes at documented offsets (`OpenPorts`) or ask for XML/strings (`EventLogSummary`). Prefer COM/WMI (`Wmi.Query`) when Windows offers it.
 - **Reusable logic goes to Core**: UI-agnostic code (hashing, formatting, scanning) lives in `WindowsUtils.Core` (`net10.0`, no WinForms references) so console apps/services can reuse it. The WinForms project holds UI only.
 - **AI logic goes to WindowsUtils.AI**: agent setup, session/streaming, tools, settings and credential storage live there. `ChatControl` is a thin UI shell that only calls `ChatSession` / `ChatSettingsStore` / `CredentialStore`.
 - **Every screen is also an AI tool**: whatever a utility screen can show must also be available to AI Chat as a tool in `PcTools` (registered in `PcTools.CreateTools()`). Tools call the same Core logic as the screen, are read-only (no delete, write or registry changes; destructive actions stay in the UI behind a confirmation), pass model-chosen paths through `ResolveDirectory` / `ToLocalPath`, and cap their output. Long scans take a `CancellationToken` parameter (AIFunctionFactory binds it and hides it from the model).
@@ -87,7 +92,7 @@ Current utilities: System Information, Disk Info, Network Info, TCP Traceroute, 
 
 1. Create `Utilities/MyToolControl.cs : UtilityControl`, build UI in the constructor.
 2. Add one line to `MainForm.Utilities`: `("My Tool", "\uE90F", "One-line description.", () => new MyToolControl()),`
-3. Expose the same capability to AI Chat: add a read-only `[Description]` method to `PcTools` and one line in `PcTools.CreateTools()` (set `NeedsApproval` if it returns file contents, secrets or similar private data). Chat and the MCP server both pick it up automatically. Write the method as a railway: `=> Run(() => RequireDirectory(dir).Bind(...).Map(Format))`; no `try`/`catch` of its own.
+3. Expose the same capability to AI Chat: add a read-only `[Description]` method to `PcTools` and one line in `PcTools.CreateTools()` (set `NeedsApproval` if it returns file contents, secrets or similar private data). Chat and the MCP server both pick it up automatically; also add a `wutils` subcommand for it in `WindowsUtils.Cli/Program.cs`. Write the method as a railway: `=> Run(() => RequireDirectory(dir).Bind(...).Map(Format))`; no `try`/`catch` of its own.
 4. If the Core logic can fail in an expected way, give it a `Result`/`Result<T>` return (see below).
 
 ## Gotchas (learned the hard way)

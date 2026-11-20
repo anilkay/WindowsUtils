@@ -71,6 +71,10 @@ public static class PcTools
         new(CreateFunction(new Func<string>(GetLocalUsers)), false),
         new(CreateFunction(new Func<string>(GetNetworkAdapters)), false),
         new(CreateFunction(new Func<string>(GetFirewallPorts)), false),
+        new(CreateFunction(new Func<bool, string, int, string>(GetOpenPorts)), false),
+        new(CreateFunction(new Func<int, bool, string>(GetWindowsUpdateHistory)), false),
+        new(CreateFunction(new Func<int, bool, int, CancellationToken, string>(GetEventLogSummary)), false),
+        new(CreateFunction(new Func<string>(GetDiskHealth)), false),
         // Outbound network calls deserve the same gate as private-data reads: the host name is
         // resolved via DNS, so embedded data (e.g. exfiltrated from an approved file) reaches the
         // attacker's own server, and traceroute probes inner networks. Reads of file contents and
@@ -455,6 +459,110 @@ public static class PcTools
         var more = rules.Count > 40 ? $"{Environment.NewLine}... {rules.Count - 40} more" : "";
         return Lines(rules.Take(40).Select(r => $"{r.Protocol,-4} {r.LocalPorts,-24} {r.Name}")) + more;
     }
+
+    [Description("Lists open ports and network connections (TCP listeners/connections and UDP endpoints, IPv4 and IPv6) "
+        + "with local/remote address, state and the owning process name and PID, like netstat -ano. Read-only.")]
+    public static string GetOpenPorts(
+        [Description("Only listening TCP ports and UDP endpoints (true), or also established/other TCP connections (false).")] bool listeningOnly = true,
+        [Description("Optional filter: matches process name, port number or address. Empty for all.")] string filter = "",
+        [Description("Maximum rows to return (1-300).")] int maxResults = 100) => Run(() =>
+        OperatingSystem.IsWindows()
+            ? OpenPorts.Get().Map(ports => DescribePorts(ports, listeningOnly, (filter ?? "").Trim(), Math.Clamp(maxResults, 1, 300)))
+            : NotOnWindows("Open ports"));
+
+    private static string DescribePorts(IReadOnlyList<PortEntry> ports, bool listeningOnly, string filter, int max)
+    {
+        var rows = ports.Where(p => !listeningOnly || p.IsListening)
+            .Where(p => filter.Length == 0
+                || p.ProcessName.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || p.LocalPort.ToString() == filter
+                || p.RemotePort?.ToString() == filter
+                || p.LocalAddress.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || p.RemoteAddress.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (rows.Count == 0)
+            return "(no matching ports)";
+        var more = rows.Count > max ? $"{Environment.NewLine}... {rows.Count - max} more" : "";
+        return $"{rows.Count} entries:{Environment.NewLine}" + Lines(rows.Take(max).Select(p =>
+            $"{p.Protocol,-5} {Endpoint(p.LocalAddress, p.LocalPort),-30} "
+            + (p.RemotePort is { } rp ? $"-> {Endpoint(p.RemoteAddress, rp),-30} " : "")
+            + (p.State.Length > 0 ? $"{p.State,-11} " : "")
+            + $"{OrDefault(p.ProcessName, "?")} (PID {p.ProcessId})")) + more;
+    }
+
+    private static string Endpoint(string address, int port) =>
+        address.Contains(':') ? $"[{address}]:{port}" : $"{address}:{port}";
+
+    [Description("Gets the Windows Update history (newest first): date, update title, KB number, install/uninstall "
+        + "and whether it succeeded or failed (with the error code). Read-only.")]
+    public static string GetWindowsUpdateHistory(
+        [Description("Maximum entries to return (1-200).")] int maxResults = 30,
+        [Description("Only failed or aborted updates.")] bool failedOnly = false) => Run(() =>
+        OperatingSystem.IsWindows()
+            ? WindowsUpdateHistory.Get(failedOnly ? 1000 : Math.Clamp(maxResults, 1, 200))
+                .Map(entries => DescribeUpdates(entries, Math.Clamp(maxResults, 1, 200), failedOnly))
+            : NotOnWindows("Windows Update"));
+
+    private static string DescribeUpdates(IReadOnlyList<UpdateHistoryEntry> entries, int max, bool failedOnly)
+    {
+        var rows = entries.Where(e => !failedOnly || !e.Succeeded).Take(max).ToList();
+        if (rows.Count == 0)
+            return failedOnly ? "(no failed updates in the history)" : "(the Windows Update history is empty)";
+        return Lines(rows.Select(e =>
+            $"{e.Date:g} {e.Operation} {e.ResultText}{(e.ErrorCode.Length > 0 ? $" ({e.ErrorCode})" : "")}: {e.Title}"));
+    }
+
+    [Description("Summarises recent critical/error (and optionally warning) events in the System and Application "
+        + "event logs, grouped by log and source: count, event IDs, last time and the latest message. Read-only.")]
+    public static string GetEventLogSummary(
+        [Description("How many hours back to look (1-720).")] int hours = 24,
+        [Description("Also include warnings, not only critical and error events.")] bool includeWarnings = true,
+        [Description("Maximum groups to return (1-100).")] int maxResults = 30,
+        CancellationToken cancellationToken = default) => Run(() =>
+        OperatingSystem.IsWindows()
+            ? EventLogSummary.Get(hours, includeWarnings, cancellationToken)
+                .Map(groups => DescribeEventGroups(groups, Math.Clamp(hours, 1, 720), includeWarnings, Math.Clamp(maxResults, 1, 100)))
+            : NotOnWindows("The event log"));
+
+    private static string DescribeEventGroups(IReadOnlyList<EventSourceSummary> groups, int hours, bool includeWarnings, int max)
+    {
+        if (groups.Count == 0)
+            return $"(no {(includeWarnings ? "critical, error or warning" : "critical or error")} events in the last {hours} hours)";
+        var more = groups.Count > max ? $"{Environment.NewLine}... {groups.Count - max} more groups" : "";
+        return Lines(groups.Take(max).Select(g =>
+            $"{g.Level} x{g.Count} [{g.Log}] {g.Source} (IDs {g.EventIds}, last {g.Latest:g})"
+            + (g.LatestMessage.Length > 0 ? $": {Truncate(g.LatestMessage, 240)}" : ""))) + more;
+    }
+
+    [Description("Gets drive/disk health for each physical disk: Windows health status, operational status, media and bus type, "
+        + "size, and SMART-derived reliability counters (temperature, wear, power-on hours, uncorrected read/write errors, "
+        + "failure prediction). Counters need Administrator. Read-only.")]
+    public static string GetDiskHealth() => Run(() =>
+        OperatingSystem.IsWindows()
+            ? DiskHealth.Get().Map(DescribeDisks)
+            : NotOnWindows("Disk health"));
+
+    private static string DescribeDisks(IReadOnlyList<DiskHealthInfo> disks)
+    {
+        if (disks.Count == 0)
+            return "(no physical disks reported)";
+        var text = Lines(disks.Select(d =>
+            $"Disk {d.DeviceId}: {d.Name} ({d.MediaType}, {d.BusType}, {ByteFormatter.FormatBytes(d.SizeBytes)}) "
+            + $"health {d.Health}, status {d.OperationalStatus}"
+            + (d.PredictsFailure is { } f ? $", SMART failure predicted: {(f ? "YES" : "no")}" : "")
+            + (d.TemperatureC is { } t ? $", {t} °C" : "")
+            + (d.WearPercent is { } w ? $", wear {w}%" : "")
+            + (d.PowerOnHours is { } h ? $", {h} power-on hours" : "")
+            + (d.ReadErrorsUncorrected is { } r ? $", uncorrected read errors {r}" : "")
+            + (d.WriteErrorsUncorrected is { } we ? $", uncorrected write errors {we}" : "")));
+        return disks.All(d => d.TemperatureC is null && d.PowerOnHours is null && d.WearPercent is null)
+            ? text + Environment.NewLine + "(no reliability counters: run as Administrator, or the drive does not report them)"
+            : text;
+    }
+
+    private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max] + "...";
+
+    private static Result<string> NotOnWindows(string feature) => Result.Fail($"Error: {feature} is only available on Windows.");
 
     [Description("Traces the network path to a host over TCP, hop by hop with latency. Needs Administrator.")]
     public static Task<string> TraceTcpRoute(

@@ -22,10 +22,14 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 | Utility | What it does |
 | --- | --- |
 | **System Information** | OS, CPU, RAM usage, uptime, screen resolution |
+| **Update History** | Windows Update history with KB numbers; failed installs highlighted with their error code |
+| **Event Log Summary** | Recent critical/error/warning events in the System and Application logs, grouped by source with the latest message |
 | **Disk Info** | All drives with total/free space; highlights drives under 10% free |
+| **Disk Health** | Physical disk health status, SMART failure prediction and reliability counters (temperature, wear, power-on hours, uncorrected errors; counters need Administrator) |
 | **Network Info** | Adapters, IPs, MAC addresses + built-in ping tool |
 | **TCP Traceroute** | Trace the network path to a host over TCP, hop by hop (needs Administrator) |
 | **Firewall Ports** | TCP/UDP ports opened by enabled inbound Windows Firewall rules |
+| **Open Ports** | Listening TCP/UDP ports and active connections with the owning process, like `netstat -ano` |
 | **File Hash Calculator** | MD5 / SHA-1 / SHA-256 / SHA-512 with hash verification |
 | **Environment Variables** | Browse User / Machine / Process variables |
 | **Battery and Power** | Charge, charging state, battery health (full vs design capacity), cycle count and the active power plan |

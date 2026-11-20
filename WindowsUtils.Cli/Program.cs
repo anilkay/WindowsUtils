@@ -51,6 +51,36 @@ static class Program
         new("firewall", [], "firewall", "Enabled inbound firewall ports.",
             (_, _) => Ok(PcTools.GetFirewallPorts())),
 
+        new("ports", ["netstat"], "ports [--all] [filter] [n]", "Open ports with owning process; --all adds connections.",
+            (a, _) =>
+            {
+                var all = a.Any(x => x.Equals("--all", StringComparison.OrdinalIgnoreCase));
+                var rest = a.Where(x => !x.Equals("--all", StringComparison.OrdinalIgnoreCase)).ToArray();
+                return Respond(OptionalInt(rest, 1, "count", 100)
+                    .Map(n => PcTools.GetOpenPorts(!all, rest.Length > 0 ? rest[0] : "", n)));
+            }),
+
+        new("updates", ["wu"], "updates [n] [--failed]", "Windows Update history, newest first.",
+            (a, _) =>
+            {
+                var failed = a.Any(x => x.Equals("--failed", StringComparison.OrdinalIgnoreCase));
+                var rest = a.Where(x => !x.Equals("--failed", StringComparison.OrdinalIgnoreCase)).ToArray();
+                return Respond(OptionalInt(rest, 0, "count", 30).Map(n => PcTools.GetWindowsUpdateHistory(n, failed)));
+            }),
+
+        new("events", ["eventlog"], "events [hours] [--errors] [n]", "Recent errors/warnings in the event logs, by source.",
+            (a, ct) =>
+            {
+                var errorsOnly = a.Any(x => x.Equals("--errors", StringComparison.OrdinalIgnoreCase));
+                var rest = a.Where(x => !x.Equals("--errors", StringComparison.OrdinalIgnoreCase)).ToArray();
+                return Respond(OptionalInt(rest, 0, "hours", 24)
+                    .Bind(hours => OptionalInt(rest, 1, "count", 30)
+                        .Map(n => PcTools.GetEventLogSummary(hours, !errorsOnly, n, ct))));
+            }),
+
+        new("diskhealth", ["smart"], "diskhealth", "Physical disk health and SMART counters (counters need admin).",
+            (_, _) => Ok(PcTools.GetDiskHealth())),
+
         new("ping", [], "ping <host> [n]", "Ping a host (ICMP echo).",
             async (a, ct) =>
             {
