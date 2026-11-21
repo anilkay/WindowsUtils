@@ -29,6 +29,7 @@ public class MainForm : Form
         (L.T("TCP Traceroute"), "\uE774", L.T("Trace the network path to a host over TCP."), () => new TcpTracerouteControl()),
         (L.T("Firewall Ports"), "\uE72E", L.T("TCP/UDP ports opened by enabled inbound firewall rules."), () => new FirewallPortsControl()),
         (L.T("Open Ports"), "\uE839", L.T("Listening ports and connections with the owning process."), () => new OpenPortsControl()),
+        (L.T("TLS Settings"), "\uEA18", L.T("SSL/TLS versions enabled in Windows, and a server's TLS version and certificate."), () => new TlsSettingsControl()),
         (L.T("File Hash Calculator"), "\uE928", L.T("Compute and verify MD5, SHA-1, SHA-256 and SHA-512 hashes."), () => new FileHashControl()),
         (L.T("Environment Variables"), "\uE943", L.T("Browse user, machine and process variables."), () => new EnvironmentVariablesControl()),
         (L.T("Battery and Power"), "\uE83F", L.T("Battery health, charge state and the active power plan."), () => new BatteryControl()),

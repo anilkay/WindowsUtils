@@ -26,6 +26,8 @@ WindowsUtils.Core/       # class library (net10.0, no WinForms): reusable logic
 ├── Net/TcpTraceroute.cs  # TCP traceroute: TTL-stepped SYN probes + ICMP hop mapping (needs admin)
 ├── Net/FirewallRules.cs  # enabled inbound allow rules with TCP/UDP ports via HNetCfg.FwPolicy2 COM (read-only)
 ├── Net/OpenPorts.cs      # TCP/UDP listeners + connections with owning PID (iphlpapi GetExtendedTcp/UdpTable, IPv4+IPv6, read as raw bytes); returns Result
+├── Net/SchannelProtocols.cs # SSL 3.0/TLS 1.0-1.3 client+server state from SCHANNEL\Protocols registry keys, else the OS-build default (read-only); returns Result
+├── Net/TlsProbe.cs      # TLS handshake with host:port (SslStream, OS protocol defaults, no revocation check): version, cipher suite, certificate + chain; host validated, returns Result
 ├── Logging/FileLoggerProvider.cs # ILoggerProvider writing to a daily rolling file under %AppData%\WindowsUtils\logs
 ├── Logging/AppLog.cs     # process-wide logger factory accessor (AppLog.Logger<T>()) + log directory
 ├── SystemInfo/InstalledPrograms.cs # installed programs from the Uninstall keys (HKLM 64/32-bit + HKCU), read-only
@@ -67,7 +69,7 @@ WindowsUtils/            # WinForms app (net10.0-windows), references Core
     └── *Control.cs       # one self-contained UserControl per utility
 ```
 
-Current utilities: System Information, Update History, Event Log Summary, Disk Info, Disk Health, Network Info, TCP Traceroute, Firewall Ports, Open Ports, File Hash Calculator, Environment Variables, Battery and Power, Installed Programs, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, Temp Cleaner, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
+Current utilities: System Information, Update History, Event Log Summary, Disk Info, Disk Health, Network Info, TCP Traceroute, Firewall Ports, Open Ports, TLS Settings, File Hash Calculator, Environment Variables, Battery and Power, Installed Programs, Startup Programs, Local Users, Folder Size Analyzer, Largest Files, Duplicate Files, Temp Cleaner, AI Chat. (Process Manager existed but was removed — do not re-add unless asked.)
 
 ## Conventions
 

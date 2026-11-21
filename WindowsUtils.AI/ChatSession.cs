@@ -271,6 +271,10 @@ public sealed class ChatSession
                 + $"(port {ArgOr("port", "80")}, up to {ArgOr("maxHops", "10")} hops)\n\n"
                 + $"Resolving the name and the probes leave this PC over the network, through its "
                 + $"firewall; the result goes to {destination}.",
+            nameof(PcTools.CheckTlsEndpoint) =>
+                $"The AI model wants to open a TLS connection to this host and port:\n\n{ArgOr("host", "?")}:{ArgOr("port", "443")}\n\n"
+                + $"Resolving the name and the connection leave this PC over the network (it can also reach "
+                + $"services inside your network); the certificate details go to {destination}.",
             _ => $"The AI model wants to run the tool {call.Name}. Its result will be sent to {destination}.",
         };
         return new(call.Name, prompt + "\n\nAllow?");

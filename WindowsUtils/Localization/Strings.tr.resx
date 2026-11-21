@@ -1384,4 +1384,106 @@
   <data name="value:Offline" xml:space="preserve">
     <value>Çevrimdışı</value>
   </data>
+  <data name="TLS Settings" xml:space="preserve">
+    <value>TLS Ayarları</value>
+  </data>
+  <data name="SSL/TLS versions enabled in Windows, and a server's TLS version and certificate." xml:space="preserve">
+    <value>Windows'ta etkin SSL/TLS sürümleri ve bir sunucunun TLS sürümü ile sertifikası.</value>
+  </data>
+  <data name="Protocols enabled in Windows (Schannel)" xml:space="preserve">
+    <value>Windows'ta etkin protokoller (Schannel)</value>
+  </data>
+  <data name="Client" xml:space="preserve">
+    <value>İstemci</value>
+  </data>
+  <data name="Server" xml:space="preserve">
+    <value>Sunucu</value>
+  </data>
+  <data name="Check a server" xml:space="preserve">
+    <value>Sunucu denetle</value>
+  </data>
+  <data name="Check" xml:space="preserve">
+    <value>Denetle</value>
+  </data>
+  <data name="Subject" xml:space="preserve">
+    <value>Konu</value>
+  </data>
+  <data name="Issuer" xml:space="preserve">
+    <value>Veren</value>
+  </data>
+  <data name="Expires" xml:space="preserve">
+    <value>Bitiş</value>
+  </data>
+  <data name="Thumbprint" xml:space="preserve">
+    <value>Parmak izi</value>
+  </data>
+  <data name="Read-only. The check uses this PC's TLS settings, sends no data after the handshake and does not check revocation." xml:space="preserve">
+    <value>Salt okunur. Denetim bu bilgisayarın TLS ayarlarını kullanır, el sıkışmadan sonra veri göndermez ve iptal durumunu denetlemez.</value>
+  </data>
+  <data name="Only current protocols are enabled." xml:space="preserve">
+    <value>Yalnızca güncel protokoller etkin.</value>
+  </data>
+  <data name="{0} setting(s) need attention: an outdated protocol is on or a current one is off." xml:space="preserve">
+    <value>{0} ayar dikkat istiyor: eski bir protokol açık ya da güncel bir protokol kapalı.</value>
+  </data>
+  <data name="{0} ({1})" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="Not a valid host name or IP address: {0}" xml:space="preserve">
+    <value>Geçerli bir ana bilgisayar adı veya IP adresi değil: {0}</value>
+  </data>
+  <data name="Connecting to {0}:{1}..." xml:space="preserve">
+    <value>{0}:{1} adresine bağlanılıyor...</value>
+  </data>
+  <data name="Endpoint" xml:space="preserve">
+    <value>Uç nokta</value>
+  </data>
+  <data name="TLS version" xml:space="preserve">
+    <value>TLS sürümü</value>
+  </data>
+  <data name="Cipher suite" xml:space="preserve">
+    <value>Şifre takımı</value>
+  </data>
+  <data name="DNS names" xml:space="preserve">
+    <value>DNS adları</value>
+  </data>
+  <data name="(none)" xml:space="preserve">
+    <value>(yok)</value>
+  </data>
+  <data name="Valid from" xml:space="preserve">
+    <value>Geçerlilik başlangıcı</value>
+  </data>
+  <data name="{0} (expired {1} days ago)" xml:space="preserve">
+    <value>{0} ({1} gün önce süresi doldu)</value>
+  </data>
+  <data name="{0} ({1} days left)" xml:space="preserve">
+    <value>{0} ({1} gün kaldı)</value>
+  </data>
+  <data name="Validation" xml:space="preserve">
+    <value>Doğrulama</value>
+  </data>
+  <data name="No errors" xml:space="preserve">
+    <value>Hata yok</value>
+  </data>
+  <data name="OK" xml:space="preserve">
+    <value>Tamam</value>
+  </data>
+  <data name="{0} with {1}, the certificate has expired." xml:space="preserve">
+    <value>{0}, {1} ile; sertifikanın süresi dolmuş.</value>
+  </data>
+  <data name="{0} with {1}, certificate expires in {2} days." xml:space="preserve">
+    <value>{0}, {1} ile; sertifikanın süresi {2} gün sonra doluyor.</value>
+  </data>
+  <data name="value:Disabled by default" xml:space="preserve">
+    <value>Varsayılan olarak kapalı</value>
+  </data>
+  <data name="value:Not supported" xml:space="preserve">
+    <value>Desteklenmiyor</value>
+  </data>
+  <data name="value:Registry" xml:space="preserve">
+    <value>Kayıt defteri</value>
+  </data>
+  <data name="value:OS default" xml:space="preserve">
+    <value>İşletim sistemi varsayılanı</value>
+  </data>
 </root>

@@ -126,6 +126,20 @@ static class Program
                 return Print(await PcTools.TraceTcpRoute(args[0], limits.Value.Port, limits.Value.Hops, resolveNames, timeoutMs, ct));
             }),
 
+        new("tls", ["schannel"], "tls", "SSL/TLS versions enabled in Windows Schannel (client and server).",
+            (_, _) => Ok(PcTools.GetTlsProtocolSettings())),
+
+        new("tlscheck", ["cert"], "tlscheck <host> [port]", "TLS version, cipher suite and certificate chain of a server.",
+            async (a, ct) =>
+            {
+                if (a.Length == 0)
+                    return Error("Missing host.", "tlscheck <host> [port]");
+                var port = OptionalInt(a, 1, "port", 443);
+                if (port.IsFailed)
+                    return Error(port.Errors[0].Message);
+                return Print(await PcTools.CheckTlsEndpoint(a[0], port.Value, ct));
+            }),
+
         new("programs", ["apps"], "programs [name|size|date] [n] [filter]", "Installed programs, sortable by name, size or date.",
             (a, _) => Respond(OptionalInt(a, 1, "count", 50)
                 .Map(n => PcTools.GetInstalledPrograms(a.Length > 0 ? a[0] : "name", a.Length > 2 ? a[2] : "", n)))),

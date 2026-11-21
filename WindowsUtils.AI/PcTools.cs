@@ -75,6 +75,7 @@ public static class PcTools
         new(CreateFunction(new Func<int, bool, string>(GetWindowsUpdateHistory)), false),
         new(CreateFunction(new Func<int, bool, int, CancellationToken, string>(GetEventLogSummary)), false),
         new(CreateFunction(new Func<string>(GetDiskHealth)), false),
+        new(CreateFunction(new Func<string>(GetTlsProtocolSettings)), false),
         // Outbound network calls deserve the same gate as private-data reads: the host name is
         // resolved via DNS, so embedded data (e.g. exfiltrated from an approved file) reaches the
         // attacker's own server, and traceroute probes inner networks. Reads of file contents and
@@ -82,6 +83,9 @@ public static class PcTools
         // ApprovalRequiredAIFunction; the MCP server in its approval gate.
         new(CreateFunction(new Func<string, int, CancellationToken, Task<string>>(PingHost)), true, true),
         new(CreateFunction(new Func<string, int, int, bool, int, CancellationToken, Task<string>>(TraceTcpRoute)), true, true),
+        // A TLS check opens a TCP connection to any host:port the model names, so it can probe
+        // inner services (SSRF) as well as leak data through DNS: same gate as ping/traceroute.
+        new(CreateFunction(new Func<string, int, CancellationToken, Task<string>>(CheckTlsEndpoint)), true, true),
         new(CreateFunction(new Func<string, int, string>(ReadTextFile)), true),
         new(CreateFunction(new Func<string, string>(GetEnvironmentVariable)), true),
         new(CreateFunction(new Func<string, int, string>(ListEnvironmentVariables)), true),
@@ -585,6 +589,50 @@ public static class PcTools
             return "(no hops)";
         return Lines(hops.Select(h =>
             $"{h.Ttl,2}  {(h.Address ?? "*"),-15} {(h.HostName ?? ""),-30} {FormatRtt(h.Rtt1Ms),-8} {FormatRtt(h.Rtt2Ms),-8} {FormatRtt(h.Rtt3Ms),-8} {h.Note ?? ""}".TrimEnd()));
+    }
+
+    [Description("Lists which SSL/TLS protocol versions (SSL 3.0, TLS 1.0-1.3) Windows Schannel has enabled, "
+        + "for the client and the server side, from the SCHANNEL\\Protocols registry keys or the OS default. Read-only.")]
+    public static string GetTlsProtocolSettings() => Run(() =>
+        OperatingSystem.IsWindows()
+            ? SchannelProtocols.Get().Map(DescribeSchannel)
+            : NotOnWindows("Schannel"));
+
+    private static string DescribeSchannel(IReadOnlyList<SchannelProtocolSetting> settings) =>
+        Lines(settings.GroupBy(s => s.Protocol).Select(g =>
+            $"{g.Key,-8} " + string.Join("  ", g.Select(s => $"{s.Side}: {s.State} ({s.Source})"))));
+
+    [Description("Connects to host:port and does a TLS handshake with the OS defaults to report the negotiated "
+        + "TLS version, cipher suite, the certificate's subject, names, expiry date and its chain. Sends no data.")]
+    public static Task<string> CheckTlsEndpoint(
+        [Description("Host name or IP address, e.g. example.com.")] string host,
+        [Description("TCP port (1-65535), usually 443.")] int port = 443,
+        CancellationToken cancellationToken = default) => RunAsync(
+        () => CheckTlsAsync(host, port, cancellationToken),
+        ex => $"TLS check failed: {ex.GetBaseException().Message}");
+
+    // ProbeAsync validates host and port first (no URLs or user@ parts), so a bad value never connects.
+    private static async Task<Result<string>> CheckTlsAsync(string host, int port, CancellationToken cancellationToken) =>
+        (await TlsProbe.ProbeAsync(host, port, 10000, cancellationToken)).Map(DescribeTls);
+
+    private static string DescribeTls(TlsProbeResult r)
+    {
+        var lines = new List<string>
+        {
+            $"Endpoint:   {r.Host}:{r.Port} ({r.RemoteAddress})",
+            $"Protocol:   {r.Protocol}",
+            $"Cipher:     {r.CipherSuite}",
+            $"Subject:    {r.Subject}",
+            $"Issuer:     {r.Issuer}",
+            $"DNS names:  {(r.DnsNames.Count == 0 ? "(none)" : Truncate(string.Join(", ", r.DnsNames), 400))}",
+            $"Valid:      {r.NotBefore:yyyy-MM-dd} to {r.NotAfter:yyyy-MM-dd} "
+                + (r.DaysLeft < 0 ? $"(EXPIRED {-r.DaysLeft} days ago)" : $"({r.DaysLeft} days left)"),
+            $"Validation: {r.ValidationErrors}",
+            "Chain:",
+        };
+        lines.AddRange(r.Chain.Take(10).Select((c, i) =>
+            $"  {i + 1}. {c.Subject} | issuer {c.Issuer} | expires {c.NotAfter:yyyy-MM-dd} | {c.Status}"));
+        return Lines(lines);
     }
 
     private static string FormatRtt(long? ms) => ms.HasValue ? $"{ms.Value} ms" : "*";
