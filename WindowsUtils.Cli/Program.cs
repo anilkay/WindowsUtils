@@ -21,7 +21,7 @@ static class Program
         new("time", [], "time", "Current date and time.",
             (_, _) => Ok(PcTools.GetCurrentTime())),
 
-        new("system", ["sysinfo"], "system", "OS, CPU, memory and .NET runtime.",
+        new("system", ["sysinfo"], "system", "OS, CPU, memory, .NET, PowerShell and WSL.",
             (_, _) => Ok(PcTools.GetSystemInfo())),
 
         new("netfx", [], "netfx", "Installed .NET Framework version(s).",

@@ -38,6 +38,8 @@ WindowsUtils.Core/       # class library (net11.0, no WinForms): reusable logic
 ├── SystemInfo/JavaDetector.cs # installed Java: JAVA_HOME, vendor registry keys, PATH; reads the "release" file
 ├── SystemInfo/PythonDetector.cs # installed Python: PATH (skips WindowsApps aliases), PEP 514 registry keys, Python install manager (%LOCALAPPDATA%\Python), pyenv-win
 ├── SystemInfo/NodeDetector.cs # installed Node.js: PATH, installer registry key, nvm-windows, Volta, fnm
+├── SystemInfo/PowerShellDetector.cs # installed Windows PowerShell 5.1 (engine registry key) and PowerShell 7+ (PATH, %ProgramFiles%\PowerShell)
+├── SystemInfo/WslDetector.cs # WSL status from HKCU\...\Lxss: default version, distro names/versions, WSL2 kernel/package presence
 ├── SystemInfo/PowerReport.cs # battery (GetSystemPowerStatus + WMI root\wmi capacity/health/cycles) and active power plan (powrprof), read-only
 ├── SystemInfo/Wmi.cs     # read-only WQL query helper over the WbemScripting COM object (no System.Management package)
 ├── SystemInfo/WindowsFeatures.cs # optional Windows features (Telnet, IIS, SMB1, Hyper-V, WSL, ...) via WMI COM, read-only

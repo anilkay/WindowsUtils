@@ -90,7 +90,8 @@ public static class PcTools
     public static string GetCurrentTime() => Run(() => DateTime.Now.ToString("F"));
 
     [Description("Gets system info: machine, user, OS and architecture, CPU name, logical processors, "
-        + "total/available RAM and RAM in use, uptime, system directory, screen resolution and the .NET runtime.")]
+        + "total/available RAM and RAM in use, uptime, system directory, screen resolution, the .NET runtime, "
+        + "installed PowerShell versions and whether WSL2 is available.")]
     public static string GetSystemInfo() => Run(() =>
     {
         var lines = new List<string>
@@ -121,6 +122,12 @@ public static class PcTools
         var (width, height) = SystemDetails.ScreenSize();
         if (width > 0 && height > 0)
             lines.Add($"Screen Resolution: {width} x {height}");
+
+        var powershell = PowerShellDetector.Find();
+        lines.Add(powershell.Count == 0
+            ? "PowerShell: Not installed"
+            : $"PowerShell: {string.Join("; ", powershell.Select(p => $"{p.Display} at {p.Home} [{p.Source}]"))}");
+        lines.Add($"WSL: {WslDetector.Get().Display}");
 
         lines.Add($"Runtime: {Environment.Version}");
         lines.Add($"Framework: {RuntimeInformation.FrameworkDescription}");

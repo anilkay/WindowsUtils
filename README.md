@@ -21,7 +21,7 @@ New releases are built by GitHub Actions whenever a `v*` tag is pushed. To cut o
 
 | Utility | What it does |
 | --- | --- |
-| **System Information** | OS, CPU, RAM usage, uptime, screen resolution |
+| **System Information** | OS, CPU, RAM usage, uptime, screen resolution, PowerShell versions, WSL2 |
 | **Disk Info** | All drives with total/free space; highlights drives under 10% free |
 | **Network Info** | Adapters, IPs, MAC addresses + built-in ping tool |
 | **TCP Traceroute** | Trace the network path to a host over TCP, hop by hop (needs Administrator) |
