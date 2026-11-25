@@ -18,6 +18,8 @@ public class SystemInfoControl : UtilityControl
         AddRuntimeRows(grid, "Java", JavaDetector.Find());
         AddRuntimeRows(grid, "Python", PythonDetector.Find());
         AddRuntimeRows(grid, "Node.js", NodeDetector.Find());
+        AddRuntimeRows(grid, "PowerShell", PowerShellDetector.Find());
+        grid.Rows.Add("WSL", WslDetector.Get().Display);
 
         Controls.Add(grid);
         _ = AddFeatureRowsAsync(grid);
